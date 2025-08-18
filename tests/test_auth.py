@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 import pytest
 import uuid
 
-from main import app
+from app.main import app
 
 ROUTE = "/auth"
 @pytest.fixture
