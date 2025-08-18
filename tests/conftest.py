@@ -25,7 +25,8 @@ def access_token(new_user):
 @pytest.fixture
 def new_project(client, access_token):
     headers = {"Authorization": f"Bearer {access_token}"}
-    payload = {"name": "My Test Project"}
-    response = client.post("/projects/", json=payload, headers=headers)
+    payload = {"name": "My Test Project",
+               "description": "Test description"}
+    response = client.put("/projects/1/info", json=payload, headers=headers)
     assert response.status_code == 201
     return response.json()
