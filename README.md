@@ -34,10 +34,11 @@ tests/
 
 | Method | Path | Description | Status |
 | :-- | :-- | :-- | :-- |
-| POST | /auth/sign_up | Create a new user account | 201/400 |
+| POST | /auth/create_user | Create a new user | 201/400 |
 | POST | /auth/login | Authenticate user and receive JWT token | 200/401 |
 |
 | GET | /projects/ | Get all accessible projects (owned + shared) | 200 |
+| POST | /projects/ | Create project  | 201 |
 | GET | /projects/{project_id}/info | Get project details | 200/404 |
 | PUT | /projects/{project_id}/info | Update project name and description | 200/404 |
 | DELETE | /projects/{project_id} | Delete a project and its documents | 200/404 |
