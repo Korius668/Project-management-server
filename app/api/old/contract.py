@@ -22,13 +22,6 @@ auth=APIRouter(prefix="/auth", tags=["auth"])
 projects=APIRouter(prefix="/projects", tags=["projects"])
 documents=APIRouter(prefix="/documents", tags=["documents"])
 
-
-app = FastAPI(
-    title="Project Documents API",
-    version="1.0.0",
-    description="API for user authentication, project management, and document handling.",
-)
-
 # Security (JWT Bearer)
 bearer_scheme = HTTPBearer(auto_error=True)
 

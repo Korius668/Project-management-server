@@ -1,409 +1,118 @@
-# **API Contract**
+# Project Management Server
 
-## **Authentication**
+## ✨ Features
 
-All endpoints (except `/auth/login` and `/auth/sign_up`) require authentication via a JSON Web Token (JWT) in the `Authorization` header:
-
+## 🚀 Quick Start
 ```
-Authorization: Bearer <jwt_token>
+bash
+# 1. (Optional) create & activate a virtual environment
+python -m venv .venv && source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate                           # Windows PowerShell
+
+# 2. Install the dependencies
+pip install -r requirements.txt
+
+# 3. Run the development server (auto-reload enabled)
+python ./app/main.py
 ```
 
-* The token is obtained by sending valid credentials to `/auth/login`.
-* On each request, the server validates the token and extracts `user_id` from its payload.
-* If the token is invalid or expired, the server returns `401 Unauthorized`.
-
+Navigate to <http://localhost:8000/docs> for the interactive Swagger UI 🚀
+## 🗂 Project Structure
+```
+app/
+    domain/
+    ports/
+    adapters/
+    usecases/
+    api/
+    main.py
+tests/             
+```
 ---
 
-## **/auth**
+## 🔌 HTTP API Overview
 
-### **POST /auth/sign\_up**
+| Method | Path | Description | Status |
+| :-- | :-- | :-- | :-- |
+| POST | /auth/sign_up | Create a new user account | 201/400 |
+| POST | /auth/login | Authenticate user and receive JWT token | 200/401 |
+|
+| GET | /projects/ | Get all accessible projects (owned + shared) | 200 |
+| GET | /projects/{project_id}/info | Get project details | 200/404 |
+| PUT | /projects/{project_id}/info | Update project name and description | 200/404 |
+| DELETE | /projects/{project_id} | Delete a project and its documents | 200/404 |
+| GET | /projects/{project_id}/documents | List documents in a project | 200/404 |
+| POST | /projects/{project_id}/documents | Upload one or multiple documents to a project | 201/404/415 |
+| POST | /projects/{project_id}/invite | Grant a user access to a project | 200/400/404 |
+|
+| GET | /documents/{document_id} | Download a document | 200/404 |
+| PUT | /documents/{document_id} | Update document content or metadata | 200/404 |
+| DELETE | /documents/{document_id} | Delete a document | 200/404 |
 
-**Description:** Create a new user account.
+> OpenAPI documentation is served automatically at `/docs` (Swagger UI) and `/redoc`.
 
-**Input Parameters:**
+## 🧱 Architecture
 
-* `login` *(string)* – Login not existing in database.
-* `password` *(string)* – User’s password.
+```mermaid
+flowchart TB
+  subgraph row3[ ]
+    port["Repository (port)"]
+    domain[Domain]
+    sql[SQLRepository]
+    usecases[Use-cases]
 
-**Example Request:**
+    usecases -- "(sync)" --> domain -- "(sync)" --> sql -- "implements" --> port <--> usecases
+  end
+  
+  subgraph row1[ ]
+    api[FastAPI]
+    client[async client / UI]
+   
+    api -- "calls (async)" --> usecases
+    api <-- "HTTP" --> client
+  end
 
-```json
-POST /auth/sign_up
-{
-    "login": "user_1",
-    "password": "VerySafePass123"
-}
+style row1 fill:none,stroke:none
+style row3 fill:none,stroke:none
 ```
 
-**Status Codes:**
+## Data Base Schema
+```mermaid
+erDiagram
+    USERS {
+        UUID id PK
+        VARCHAR email "unique"
+        VARCHAR name
+        VARCHAR password_hash
+    }
 
-* `201 Created`
-* `400 Bad Request` – Login already exists.
+    PROJECTS {
+        UUID id PK
+        UUID owner_id FK
+        VARCHAR name
+        TEXT description
+    }
 
----
+    PROJECT_MEMBERSHIPS {
+        UUID project_id FK
+        UUID user_id FK
+        VARCHAR role "enum: owner, editor, viewer"
+    }
 
-### **POST /auth/login**
+    DOCUMENTS {
+        UUID id PK
+        UUID project_id FK
+        VARCHAR filename
+        VARCHAR content_type
+        BIGINT size_bytes
+        VARCHAR storage_path "object store path or key"
+        JSON metadata
+        TIMESTAMP created_at
+    }
 
-**Description:** Authenticate user and receive JWT token.
-
-**Input Parameters:**
-
-* `login` *(string)* – Login existing in database.
-* `password` *(string)* – Correct password.
-
-**Output Parameters:**
-
-* `jwt_token` *(string)* – JWT token for authenticating further requests.
-
-**Example Request/Response:**
-
-```json
-POST /auth/login
-{
-    "login": "user_1",
-    "password": "VerySafePass123"
-}
-
-Response:
-{
-    "jwt_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ..."
-}
+    USERS ||--o{ PROJECTS : owns
+    PROJECTS ||--o{ PROJECT_MEMBERSHIPS : "has members"
+    USERS ||--o{ PROJECT_MEMBERSHIPS : "member of"
+    PROJECTS ||--o{ DOCUMENTS : "contains"
+    USERS ||--o{ DOCUMENTS : "uploaded by"
 ```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized` – Invalid credentials.
-
----
-
-## **/projects**
-
-### **GET /projects**
-
-**Description:** Get all projects accessible for the authenticated user (owned + shared), including project details and associated documents.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-[
-  {
-    "id": "uuid",
-    "name": "Project Alpha",
-    "description": "Project description",
-    "owner_id": "uuid",
-    "created_at": "2025-08-11T10:00:00Z",
-    "documents": [
-      {
-        "id": "uuid",
-        "name": "design.pdf",
-        "uploaded_at": "2025-08-11T12:00:00Z"
-      }
-    ]
-  }
-]
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-
----
-
-### **GET /projects/{project\_id}/info**
-
-**Description:** Return project details if the user has access.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-{
-  "id": "uuid",
-  "name": "Project Alpha",
-  "description": "Detailed description",
-  "owner_id": "uuid",
-  "created_at": "2025-08-11T10:00:00Z"
-}
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **PUT /projects/{project\_id}/info**
-
-**Description:** Update project name and description.
-**Permissions:** Owner or users with edit rights.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Request Body:**
-
-```json
-{
-  "name": "Updated Project Name",
-  "description": "Updated description"
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": "uuid",
-  "name": "Updated Project Name",
-  "description": "Updated description",
-  "owner_id": "uuid",
-  "updated_at": "2025-08-11T12:10:00Z"
-}
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **DELETE /projects/{project\_id}**
-
-**Description:** Delete project and all associated documents.
-**Permissions:** Only project owner.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-{ "message": "Project deleted successfully" }
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **GET /projects/{project\_id}/documents**
-
-**Description:** Get all documents belonging to a project.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-[
-  {
-    "id": "uuid",
-    "name": "design.pdf",
-    "size": 24576,
-    "uploaded_at": "2025-08-11T12:00:00Z"
-  }
-]
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **POST /projects/{project\_id}/documents**
-
-**Description:** Upload one or multiple documents to a project.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-Content-Type: multipart/form-data
-```
-
-**Request:**
-`multipart/form-data` with `files[]`
-
-**Response:**
-
-```json
-[
-  {
-    "id": "uuid",
-    "name": "design.pdf",
-    "size": 24576,
-    "uploaded_at": "2025-08-11T12:00:00Z"
-  }
-]
-```
-
-**Status Codes:**
-
-* `201 Created`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-* `415 Unsupported Media Type`
-
----
-
-## **/document**
-
-### **GET /document/{document\_id}**
-
-**Description:** Download a document if the user has access to its project.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:** Binary file stream.
-Example Headers:
-
-```
-Content-Disposition: attachment; filename="design.pdf"
-Content-Type: application/pdf
-```
-
-*(Content-Type depends on the file type.)*
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **PUT /document/{document\_id}**
-
-**Description:** Update document content or metadata.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Request:**
-`multipart/form-data` or JSON
-
-```json
-{
-  "name": "updated_design.pdf"
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": "uuid",
-  "name": "updated_design.pdf",
-  "size": 30000,
-  "updated_at": "2025-08-11T12:30:00Z"
-}
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **DELETE /document/{document\_id}**
-
-**Description:** Delete document from its project.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-{ "message": "Document deleted successfully" }
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `401 Unauthorized`
-* `403 Forbidden`
-* `404 Not Found`
-
----
-
-### **POST /projects/{project\_id}/invite?user={login}**
-
-**Description:** Grant a user access to a project.
-**Permissions:** Only project owner.
-
-**Headers:**
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-**Response:**
-
-```json
-{
-  "message": "Access granted",
-  "project_id": "uuid",
-  "granted_to": "user_login"
-}
-```
-
-**Status Codes:**
-
-* `200 OK`
-* `400 Bad Request` – User already has access
-* `401 Unauthorized`
-* `403 Forbidden` – Not project owner
-* `404 Not Found` – Project or user not found
