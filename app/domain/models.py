@@ -22,7 +22,7 @@ class Project(BaseModel):
     description:  Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
-class ProjectMember(BaseModel):
+class ProjectMembership(BaseModel):
     project_id: UUID
     user_id: UUID
     role: ProjectRole

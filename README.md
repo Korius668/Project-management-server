@@ -56,9 +56,9 @@ tests/
 ```mermaid
 flowchart TB
   subgraph row3[ ]
-    port["Repository (port)"]
+    port["Repositories (port)"]
     domain[Domain]
-    sql[SQLRepository]
+    sql[SQLRepositories]
     usecases[Use-cases]
 
     usecases -- "(sync)" --> domain -- "(sync)" --> sql -- "implements" --> port <--> usecases
@@ -93,7 +93,7 @@ erDiagram
         TEXT description
     }
 
-    PROJECT_MEMBERSHIPS {
+    PROJECT_MEMBERSIPS {
         UUID project_id FK
         UUID user_id FK
         VARCHAR role "enum: owner, editor, viewer"
@@ -107,7 +107,6 @@ erDiagram
         BIGINT size_bytes
         VARCHAR storage_path "object store path or key"
         JSON metadata
-        TIMESTAMP created_at
     }
 
     USERS ||--o{ PROJECTS : owns
