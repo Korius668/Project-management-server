@@ -7,6 +7,10 @@ projects=APIRouter(prefix="/projects", tags=["projects"])
 def get_projects():
     return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
+@projects.post("/")
+def create_project():
+    return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED)
+
 @projects.get("/{project_id}/info")
 def get_project_info():
     return Response(status_code=status.HTTP_501_NOT_IMPLEMENTED)
