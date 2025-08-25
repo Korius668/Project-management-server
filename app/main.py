@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 import logging
 
-from app.api.contract import auth, projects, documents
+from app.api.auth import auth
+from app.api.projects import projects
+from app.api.documents import documents
 
 
 def get_application() -> FastAPI:
