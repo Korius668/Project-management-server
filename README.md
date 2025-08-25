@@ -25,6 +25,7 @@ app/
     adapters/
     usecases/
     api/
+    infrastructure/
     main.py
 tests/             
 ```
@@ -36,7 +37,7 @@ tests/
 | :-- | :-- | :-- | :-- |
 | POST | /auth/create_user | Create a new user | 201/400 |
 | POST | /auth/login | Authenticate user and receive JWT token | 200/401 |
-|
+| | | | |
 | GET | /projects/ | Get all accessible projects (owned + shared) | 200 |
 | POST | /projects/ | Create project  | 201 |
 | GET | /projects/{project_id}/info | Get project details | 200/404 |
@@ -45,7 +46,7 @@ tests/
 | GET | /projects/{project_id}/documents | List documents in a project | 200/404 |
 | POST | /projects/{project_id}/documents | Upload one or multiple documents to a project | 201/404/415 |
 | POST | /projects/{project_id}/invite | Grant a user access to a project | 200/400/404 |
-|
+| | | | |
 | GET | /documents/{document_id} | Download a document | 200/404 |
 | PUT | /documents/{document_id} | Update document content or metadata | 200/404 |
 | DELETE | /documents/{document_id} | Delete a document | 200/404 |
