@@ -11,26 +11,16 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-
-
 auth=APIRouter(prefix="/auth", tags=["auth"])
 projects=APIRouter(prefix="/projects", tags=["projects"])
 documents=APIRouter(prefix="/documents", tags=["documents"])
-
-
-from fastapi.responses import StreamingResponse, Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
-
-app = FastAPI(
-    title="Project Documents API",
-    version="1.0.0",
-    description="API for user authentication, project management, and document handling.",
-)
 
 # Security (JWT Bearer)
 bearer_scheme = HTTPBearer(auto_error=True)
