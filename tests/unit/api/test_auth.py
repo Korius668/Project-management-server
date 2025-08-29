@@ -1,13 +1,15 @@
 from fastapi.testclient import TestClient
 import pytest
-import uuid
 
 from app.main import app
 
 ROUTE = "/auth"
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 def new_user(client):
