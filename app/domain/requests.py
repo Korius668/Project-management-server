@@ -1,4 +1,3 @@
-
-class AuthRequest(BaseModel):
-    login: str
-    password: str
+# class AuthRequest(BaseModel):
+#     login: str
+#     password: str
