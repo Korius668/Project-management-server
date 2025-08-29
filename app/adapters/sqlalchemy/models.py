@@ -1,21 +1,16 @@
 import uuid
-import enum
 from sqlalchemy import Column, String, Text, BigInteger, ForeignKey, Enum, JSON
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship, declarative_base
+
+from app.adapters.sqlalchemy.types import UUID, ProjectRole
 
 Base = declarative_base()
-
-
-class ProjectRole(str, enum.Enum):
-    owner = "owner"
-    editor = "editor"
-    viewer = "viewer"
 
 
 class UserORM(Base):
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=False)
     name = Column(String, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -28,8 +23,8 @@ class UserORM(Base):
 class ProjectORM(Base):
     __tablename__ = "projects"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    owner_id = Column(UUID, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text)
 
@@ -41,11 +36,10 @@ class ProjectORM(Base):
 class ProjectMembershipORM(Base):
     __tablename__ = "project_memberships"
 
-    project_id = Column(String(36), ForeignKey("projects.id"), primary_key=True)
-    user_id = Column(String(36), ForeignKey("users.id"), primary_key=True)
+    project_id = Column(UUID, ForeignKey("projects.id"), primary_key=True)
+    user_id = Column(UUID, ForeignKey("users.id"), primary_key=True)
     role = Column(Enum(ProjectRole), nullable=False)
 
-    # relacje
     project = relationship("ProjectORM", back_populates="memberships")
     user = relationship("UserORM", back_populates="memberships")
 
@@ -53,15 +47,14 @@ class ProjectMembershipORM(Base):
 class DocumentORM(Base):
     __tablename__ = "documents"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False)
-    uploader_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID, ForeignKey("projects.id"), nullable=False)
+    uploader_id = Column(UUID, ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     content_type = Column(String, nullable=False)
     size_bytes = Column(BigInteger, nullable=False)
     storage_path = Column(String, nullable=False)
-    metadata = Column(JSON)
+    metadata_json = Column(JSON)
 
-    # relacje
     project = relationship("ProjectORM", back_populates="documents")
     uploader = relationship("UserORM", back_populates="documents")
