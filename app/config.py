@@ -5,11 +5,9 @@ from pydantic import ConfigDict
 
 class Secrets(BaseSettings):
     database_url_prod: str | None = None
-    model_config = ConfigDict(
-        env_file = ".env",
-        env_file_encoding = "utf-8")
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
 
-        
+
 @dataclass
 class Settings:
     app_env: str
@@ -19,7 +17,9 @@ class Settings:
     def database_url(self) -> str:
         if self.app_env == "production":
             if not self.secrets.database_url_prod:
-                raise RuntimeError("❌ DATABASE_URL_PROD musi być ustawione w .env lub ENV!")
+                raise RuntimeError(
+                    "❌ DATABASE_URL_PROD musi być ustawione w .env lub ENV!"
+                )
             return self.secrets.database_url_prod
         elif self.app_env == "development":
             return "sqlite:///./dev.db"
@@ -31,5 +31,6 @@ class Settings:
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"
-    
+
+
 settings: Settings | None = None
