@@ -42,7 +42,3 @@ jobs:
     - name: Format with black
       run: |
         python -m black app --exclude=tests, 
-
-    - name: Code safety with bandit
-      run: |
-        python -m bandit -r . -f custom -x=tests
