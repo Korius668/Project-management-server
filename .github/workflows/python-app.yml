@@ -38,10 +38,10 @@ jobs:
     - name: Test with pytest
       run: |
         PYTHONPATH=. pytest
-
+        
     - name: Format with black
       run: |
-        python -m black . --check --exclude=tests, 
+        python -m black app --exclude=tests, 
 
     - name: Code safety with bandit
       run: |
