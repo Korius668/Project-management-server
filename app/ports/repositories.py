@@ -19,6 +19,7 @@ class UsersRepository(ABC):
     def list(self) -> List[User]:
         """Return all users"""
 
+
 class ProjectsRepository(ABC):
 
     @abstractmethod
@@ -39,7 +40,8 @@ class ProjectsRepository(ABC):
 
     @abstractmethod
     def delete(self, project_id: UUID) -> None:
-        """Delete a project by id""" 
+        """Delete a project by id"""
+
 
 class DocumentsRepository(ABC):
 
@@ -58,21 +60,22 @@ class DocumentsRepository(ABC):
     @abstractmethod
     def list(self) -> List[Document]:
         """Return all documents"""
-    
+
     @abstractmethod
     def list_with_project_id(self, project_id) -> List[Document]:
         """Return all documents with project id"""
 
     @abstractmethod
     def delete(self, document_id: UUID) -> None:
-        """Delete a document by id""" 
+        """Delete a document by id"""
+
 
 class ProjectMembershipsRepository(ABC):
 
     @abstractmethod
     def add(self, project_membership: ProjectMembership) -> ProjectMembership:
         """Add a new membership"""
-    
+
     @abstractmethod
     def list_with_project_id(self, project_id) -> List[ProjectMembership]:
         """Return all memberships with project id"""

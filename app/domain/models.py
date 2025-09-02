@@ -3,30 +3,35 @@ from typing import Annotated, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from uuid import UUID
 
+
 class ProjectRole(str, Enum):
     owner = "owner"
     editor = "editor"
     viewer = "viewer"
 
+
 class User(BaseModel):
     id: UUID
     email: EmailStr
-    name: Annotated[str, Field(min_length=4, max_length=19)]
+    name: Annotated[str, Field(min_length=3, max_length=19)]
     password_hash: str
     model_config = ConfigDict(from_attributes=True)
+
 
 class Project(BaseModel):
     id: UUID
     owner_id: UUID
     name: str
-    description:  Optional[str] = None
+    description: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
 
 class ProjectMembership(BaseModel):
     project_id: UUID
     user_id: UUID
     role: ProjectRole
     model_config = ConfigDict(from_attributes=True)
+
 
 class Document(BaseModel):
     id: UUID

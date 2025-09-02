@@ -25,6 +25,7 @@ app/
     adapters/
     usecases/
     api/
+    infrastructure/
     main.py
 tests/             
 ```
