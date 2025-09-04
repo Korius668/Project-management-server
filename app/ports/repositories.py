@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from app.domain.models import Project, User, Document, ProjectMembership
+from app.domain.models import Project, User, Document, ProjectMembership, ProjectRole
 
 
 class UsersRepository(ABC):
@@ -18,6 +18,11 @@ class UsersRepository(ABC):
     @abstractmethod
     def list(self) -> List[User]:
         """Return all users"""
+
+    @abstractmethod
+    def delete(self, user_id: UUID) -> None:
+        """Delete a user by id"""
+
 
 
 class ProjectsRepository(ABC):
@@ -62,20 +67,60 @@ class DocumentsRepository(ABC):
         """Return all documents"""
 
     @abstractmethod
-    def list_with_project_id(self, project_id) -> List[Document]:
+    def list_by_project(self, project_id) -> List[Document]:
         """Return all documents with project id"""
 
     @abstractmethod
     def delete(self, document_id: UUID) -> None:
         """Delete a document by id"""
-
+    
 
 class ProjectMembershipsRepository(ABC):
 
     @abstractmethod
     def add(self, project_membership: ProjectMembership) -> ProjectMembership:
         """Add a new membership"""
+    
+    @abstractmethod
+    def get(self, project_id: UUID, user_id: UUID) -> ProjectMembership:
+        """Get a membership"""
 
     @abstractmethod
-    def list_with_project_id(self, project_id) -> List[ProjectMembership]:
-        """Return all memberships with project id"""
+    def update(self, project_membership: ProjectMembership) -> ProjectMembership:
+        """Update a membership"""
+
+    @abstractmethod
+    def list(self):
+        """Return all memberships"""
+
+    @abstractmethod
+    def list_by_project(self, project_id) -> List[ProjectMembership]:
+        """Return memberships with project id"""
+    
+    @abstractmethod
+    def list_by_user(self, user_id) -> List[ProjectMembership]:
+        """Return documents with user id"""
+    
+    @abstractmethod
+    def delete(self, project_membership: ProjectMembership) -> None:
+        """Delete a membership"""
+    
+    @abstractmethod
+    def delete_by_project(self, project_id: UUID) -> None:
+        """Delete memberships of project"""
+    
+    @abstractmethod
+    def delete_by_user(self, user_id: UUID) -> None:
+        """Delete memberships of user"""
+    
+    @abstractmethod
+    def exists(self, project_id: UUID, user_id: UUID) -> bool:
+        """Check if membership exists"""
+    
+    @abstractmethod
+    def count_by_project(self, project_id: UUID) -> int:
+        """Count members in a project"""
+    
+    @abstractmethod
+    def get_user_role(self, project_id: UUID, user_id: UUID) -> Optional[ProjectRole]:
+        """Get user's role in a project"""
