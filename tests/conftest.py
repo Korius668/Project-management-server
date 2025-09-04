@@ -32,3 +32,4 @@ def new_project(client, access_token):
     response = client.put("/projects/1/info", json=payload, headers=headers)
     assert response.status_code == 201
     return response.json()
+
