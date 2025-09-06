@@ -15,17 +15,16 @@ from app.domain.models import ProjectMembership, ProjectRole
 def mock_session():
     return Mock()
 
+
 @pytest.fixture
 def repo(mock_session):
     return SqlAlchemyProjectMembershipsRepository(mock_session)
 
+
 @pytest.fixture
 def sample_membership():
-    return ProjectMembership(
-        project_id=uuid4(),
-        user_id=uuid4(),
-        role="editor"
-    )
+    return ProjectMembership(project_id=uuid4(), user_id=uuid4(), role="editor")
+
 
 @pytest.fixture
 def mock_query_chain(mock_session):
@@ -63,7 +62,9 @@ class TestGetMembership:
         result = repo.get(sample_membership.project_id, sample_membership.user_id)
 
         mock_filter.first.assert_called_once()
-        ProjectMembership.model_validate.assert_called_once_with(orm_instance, from_attributes=True)
+        ProjectMembership.model_validate.assert_called_once_with(
+            orm_instance, from_attributes=True
+        )
         assert result == sample_membership
 
     def test_missing(self, sample_membership, mock_query_chain, repo):

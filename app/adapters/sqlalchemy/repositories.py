@@ -2,6 +2,8 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+
 from app.domain.models import User, Project, Document, ProjectMembership, ProjectRole
 from app.domain.exceptions import (
     UserAlreadyExistsError,
@@ -26,14 +28,13 @@ from app.adapters.sqlalchemy.models import (
     ProjectMembershipORM,
 )
 
-
 class SqlAlchemyUsersRepository(UsersRepository):
     def __init__(self, session: Session):
         self.session = session
 
     def add(self, user: User) -> User:
         attempt = 0
-        max_attempts = 3  # żeby uniknąć nieskończonej pętli (teoretycznie niepotrzebne, ale to dobra praktyka)
+        max_attempts = 3
 
         while attempt < max_attempts:
             try:
@@ -46,29 +47,45 @@ class SqlAlchemyUsersRepository(UsersRepository):
                 self.session.add(orm)
                 self.session.commit()
                 return user
-            
+
             except IntegrityError as e:
                 self.session.rollback()
 
-                constraint_name = getattr(getattr(e.orig, "diag", None), "constraint_name", None)
+                constraint_name = getattr(
+                    getattr(e.orig, "diag", None), "constraint_name", None
+                )
                 if constraint_name == "users_pkey" or "primary" in str(e.orig).lower():
                     attempt += 1
                     import uuid
+
                     user.id = uuid.uuid4()
                     continue
                 if constraint_name == "uq_users_email":
-                    raise UserAlreadyExistsError(f"User with email {user.email} already exists")
+                    raise UserAlreadyExistsError(
+                        f"User with email {user.email} already exists"
+                    )
                 if constraint_name == "uq_users_name":
-                    raise UserAlreadyExistsError(f"User with name {user.name} already exists")
-                if "unique" in str(e.orig).lower() or "duplicate" in str(e.orig).lower():
+                    raise UserAlreadyExistsError(
+                        f"User with name {user.name} already exists"
+                    )
+                if (
+                    "unique" in str(e.orig).lower()
+                    or "duplicate" in str(e.orig).lower()
+                ):
                     if "email" in str(e.orig).lower():
-                        raise UserAlreadyExistsError(f"User with email {user.email} already exists")
+                        raise UserAlreadyExistsError(
+                            f"User with email {user.email} already exists"
+                        )
                     if "name" in str(e.orig).lower():
-                        raise UserAlreadyExistsError(f"User with name {user.name} already exists")
+                        raise UserAlreadyExistsError(
+                            f"User with name {user.name} already exists"
+                        )
 
                 raise
-        raise DatabaseError(f"Could not generate unique ID after {max_attempts} attempts")
-        
+        raise DatabaseError(
+            f"Could not generate unique ID after {max_attempts} attempts"
+        )
+
     def get(self, user_id: UUID) -> Optional[User]:
         try:
             orm = self.session.get(UserORM, user_id)
@@ -77,7 +94,16 @@ class SqlAlchemyUsersRepository(UsersRepository):
             return None
         except SQLAlchemyError as e:
             raise DatabaseError(f"Database error during user retrieval: {e}")
-
+    
+    def get_by_name(self, name: str) -> Optional[User]:
+        try:
+            orm = self.session.query(UserORM).filter_by(email=name).first()
+            if orm:
+                return User.model_validate(orm, from_attributes=True)
+            return None
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Database error during user retrieval: {e}")
+       
     def list(self) -> List[User]:
         try:
             orms = self.session.query(UserORM).all()
@@ -195,7 +221,7 @@ class SqlAlchemyProjectsRepository(ProjectsRepository):
             self.session.commit()
         except IntegrityError as e:
             self.session.rollback()
-            # W razie gdy nie można usunąć z powodu FK
+
             raise DatabaseError(
                 f"Cannot delete project {project_id} due to DB constraints: {e}"
             )
@@ -224,8 +250,6 @@ class SqlAlchemyDocumentsRepository(DocumentsRepository):
             return document
         except IntegrityError as e:
             self.session.rollback()
-
-            # stabilna identyfikacja constraintu
             constraint_name = getattr(
                 getattr(e.orig, "diag", None), "constraint_name", None
             )
@@ -253,7 +277,7 @@ class SqlAlchemyDocumentsRepository(DocumentsRepository):
             orm = self.session.get(DocumentORM, document_id)
             if not orm:
                 raise DocumentNotFoundError(f"Document with id {document_id} not found")
-            else: 
+            else:
                 return Document.model_validate(orm, from_attributes=True)
         except SQLAlchemyError as e:
             raise DatabaseError(

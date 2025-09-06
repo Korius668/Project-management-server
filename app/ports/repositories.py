@@ -14,6 +14,10 @@ class UsersRepository(ABC):
     @abstractmethod
     def get(self, user_id: UUID) -> User:
         """Retrieve a user by id"""
+    
+    @abstractmethod
+    def get_by_name(self, name: str) -> Optional[User]:
+        """Retrieve a user by name"""
 
     @abstractmethod
     def list(self) -> List[User]:

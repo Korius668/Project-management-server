@@ -6,6 +6,10 @@ from pydantic import ConfigDict
 class Secrets(BaseSettings):
     database_url_prod: str | None = None
     model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+    #jwt
+    secret_key: str
+    algorithm: str
+    access_token_expire_minutes: int
 
 
 @dataclass
@@ -34,3 +38,4 @@ class Settings:
 
 
 settings: Settings | None = None
+secrets = Secrets()

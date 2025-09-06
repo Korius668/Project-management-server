@@ -1,5 +1,6 @@
 import pytest
 from uuid import uuid4
+from unittest.mock import Mock
 from app.domain.models import User, Project, Document, ProjectMembership, ProjectRole
 
 
@@ -45,3 +46,8 @@ def sample_membership():
     return ProjectMembership(
         project_id=uuid4(), user_id=uuid4(), role=ProjectRole.editor
     )
+
+@pytest.fixture
+def mock_session():
+    return Mock()
+
