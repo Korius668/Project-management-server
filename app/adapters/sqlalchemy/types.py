@@ -1,5 +1,4 @@
 import uuid
-import enum
 from sqlalchemy import String
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -34,9 +33,3 @@ class UUID(TypeDecorator):
         if isinstance(value, uuid.UUID):
             return value
         return uuid.UUID(str(value))
-
-
-class ProjectRole(str, enum.Enum):
-    owner = "owner"
-    editor = "editor"
-    viewer = "viewer"

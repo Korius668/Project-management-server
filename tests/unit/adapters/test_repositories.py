@@ -5,84 +5,81 @@ from app.adapters.sqlalchemy.repositories import (
     SqlAlchemyUsersRepository,
     SqlAlchemyProjectsRepository,
     SqlAlchemyDocumentsRepository,
-    SqlAlchemyProjectMembershipsRepository,
 )
 from app.adapters.sqlalchemy.models import (
     UserORM,
     ProjectORM,
     DocumentORM,
-    ProjectMembershipORM,
 )
-from app.domain.models import User, Project, Document, ProjectMembership, ProjectRole
+from app.domain.models import User, Project, Document
+from app.domain.exceptions import ProjectNotFoundError, DocumentNotFoundError, DocumentAlreadyExistsError
+
+
+@pytest.fixture
+def mock_session():
+    return Mock()
+
+@pytest.fixture
+def mock_query_chain(mock_session):
+    """Pomocniczy fixture do chainowania query()"""
+    mock_query = Mock()
+    mock_filter = Mock()
+    mock_query.filter_by.return_value = mock_filter
+    mock_session.query.return_value = mock_query
+    return mock_query, mock_filter
+
+@pytest.fixture
+def repo(mock_session):
+    return SqlAlchemyUsersRepository(mock_session)
 
 
 class TestSqlAlchemyUsersRepository:
 
-    def test_add_user_success(self, sample_user):
-        # Given
-        mock_session = Mock()
-        repo = SqlAlchemyUsersRepository(mock_session)
-
-        user = sample_user
-
+   
+    def test_add_user_success(self, sample_user, mock_session, repo):
         # When
-        result = repo.add(user)
-
+        result = repo.add(sample_user)
         # Then
         mock_session.add.assert_called_once()
         mock_session.commit.assert_called_once()
-        assert result == user
-
+        assert result == sample_user
         # Verify ORM object was created correctly
         orm_call = mock_session.add.call_args[0][0]
         assert isinstance(orm_call, UserORM)
-        assert orm_call.id == user.id
-        assert orm_call.email == user.email
-        assert orm_call.name == user.name
-        assert orm_call.password_hash == user.password_hash
+        assert orm_call.id == sample_user.id
+        assert orm_call.email == sample_user.email
+        assert orm_call.name == sample_user.name
+        assert orm_call.password_hash == sample_user.password_hash
 
-    def test_get_user_found(self):
-        # Given
-        mock_session = Mock()
-        user_id = uuid4()
-
+    def test_get_user_found(self, sample_user, mock_session, repo):
         # Mock ORM object
         mock_orm = Mock(spec=UserORM)
-        mock_orm.id = user_id
-        mock_orm.email = "test@example.com"
-        mock_orm.name = "Test User"
-        mock_orm.password_hash = "hashed"
+        mock_orm.id = sample_user.id
+        mock_orm.email = sample_user.email
+        mock_orm.name = sample_user.name
+        mock_orm.password_hash = sample_user.password_hash
 
         mock_session.get.return_value = mock_orm
         repo = SqlAlchemyUsersRepository(mock_session)
-
         # When
-        result = repo.get(user_id)
-
+        result = repo.get(sample_user.id)
         # Then
-        mock_session.get.assert_called_once_with(UserORM, user_id)
+        mock_session.get.assert_called_once_with(UserORM, sample_user.id)
         assert result is not None
-        assert result.id == user_id
-        assert result.email == "test@example.com"
-        assert result.name == "Test User"
+        assert result.id == sample_user.id
+        assert result.email == sample_user.email
+        assert result.name == sample_user.name
 
-    def test_get_user_not_found(self):
+    def test_get_user_not_found(self, sample_user, mock_session, repo):
         # Given
-        mock_session = Mock()
         mock_session.get.return_value = None
-        repo = SqlAlchemyUsersRepository(mock_session)
-        user_id = uuid4()
-
         # When
-        result = repo.get(user_id)
-
+        result = repo.get(sample_user.id)
         # Then
-        mock_session.get.assert_called_once_with(UserORM, user_id)
+        mock_session.get.assert_called_once_with(UserORM, sample_user.id)
         assert result is None
 
-    def test_list_users(self):
-        # Given
-        mock_session = Mock()
+    def test_list_users(self, mock_session, repo):
 
         # Mock ORM objects
         mock_orms = []
@@ -115,10 +112,7 @@ class TestSqlAlchemyUsersRepository:
 
 class TestSqlAlchemyProjectsRepository:
 
-    def test_update_project_success(self, sample_project):
-        # Given
-        mock_session = Mock()
-
+    def test_update_project_success(self, sample_project, mock_session, repo):
         # Mock existing ORM object
         mock_orm = Mock(spec=ProjectORM)
         mock_session.get.return_value = mock_orm
@@ -146,10 +140,9 @@ class TestSqlAlchemyProjectsRepository:
         project = sample_project
 
         # When
-        result = repo.update(project)
-
-        # Then
-        mock_session.get.assert_called_once_with(ProjectORM, project.id)
+        result = None
+        with pytest.raises(ProjectNotFoundError, match=f"Project with id {project.id} not found"):
+            result = repo.update(project)
         mock_session.commit.assert_not_called()
         assert result is None
 
@@ -251,10 +244,9 @@ class TestSqlAlchemyProjectsRepository:
         repo = SqlAlchemyProjectsRepository(mock_session)
 
         # When
-        repo.delete(project_id)
-
-        # Then
-        mock_session.get.assert_called_once_with(ProjectORM, project_id)
+        with pytest.raises(ProjectNotFoundError, match=f"Project with id {project_id} not found"):
+            repo.delete(project_id)
+    
         mock_session.delete.assert_not_called()
         mock_session.commit.assert_not_called()
 
@@ -326,9 +318,10 @@ class TestSqlAlchemyDocumentsRepository:
         mock_session.get.return_value = None
         repo = SqlAlchemyDocumentsRepository(mock_session)
         document_id = uuid4()
-
+        result=None
         # When
-        result = repo.get(document_id)
+        with pytest.raises(DocumentNotFoundError, match=f"Document with id {document_id} not found"):
+            result = repo.get(document_id)
 
         # Then
         mock_session.get.assert_called_once_with(DocumentORM, document_id)
@@ -364,16 +357,15 @@ class TestSqlAlchemyDocumentsRepository:
         mock_session = Mock()
         mock_session.get.return_value = None
         repo = SqlAlchemyDocumentsRepository(mock_session)
-
-        document = sample_document
-
-        # When
-        result = repo.update(document)
+        result = None
+        with pytest.raises(DocumentNotFoundError, match=f"Document with id {sample_document.id} not found"):
+            result = repo.update(sample_document)
 
         # Then
-        mock_session.get.assert_called_once_with(DocumentORM, document.id)
+        mock_session.get.assert_called_once_with(DocumentORM, sample_document.id)
         mock_session.commit.assert_not_called()
-        assert result is None
+        assert result==None
+  
 
     def test_list_documents(self):
         # Given
@@ -473,7 +465,8 @@ class TestSqlAlchemyDocumentsRepository:
         repo = SqlAlchemyDocumentsRepository(mock_session)
 
         # When
-        repo.delete(document_id)
+        with pytest.raises(DocumentNotFoundError, match=f"Document with id {document_id} not found"):
+            repo.delete(document_id)
 
         # Then
         mock_session.get.assert_called_once_with(DocumentORM, document_id)

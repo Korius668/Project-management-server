@@ -24,7 +24,6 @@ class UsersRepository(ABC):
         """Delete a user by id"""
 
 
-
 class ProjectsRepository(ABC):
 
     @abstractmethod
@@ -73,14 +72,14 @@ class DocumentsRepository(ABC):
     @abstractmethod
     def delete(self, document_id: UUID) -> None:
         """Delete a document by id"""
-    
+
 
 class ProjectMembershipsRepository(ABC):
 
     @abstractmethod
     def add(self, project_membership: ProjectMembership) -> ProjectMembership:
         """Add a new membership"""
-    
+
     @abstractmethod
     def get(self, project_id: UUID, user_id: UUID) -> ProjectMembership:
         """Get a membership"""
@@ -96,31 +95,31 @@ class ProjectMembershipsRepository(ABC):
     @abstractmethod
     def list_by_project(self, project_id) -> List[ProjectMembership]:
         """Return memberships with project id"""
-    
+
     @abstractmethod
     def list_by_user(self, user_id) -> List[ProjectMembership]:
         """Return documents with user id"""
-    
+
     @abstractmethod
     def delete(self, project_membership: ProjectMembership) -> None:
         """Delete a membership"""
-    
+
     @abstractmethod
     def delete_by_project(self, project_id: UUID) -> None:
         """Delete memberships of project"""
-    
+
     @abstractmethod
     def delete_by_user(self, user_id: UUID) -> None:
         """Delete memberships of user"""
-    
+
     @abstractmethod
     def exists(self, project_id: UUID, user_id: UUID) -> bool:
         """Check if membership exists"""
-    
+
     @abstractmethod
     def count_by_project(self, project_id: UUID) -> int:
         """Count members in a project"""
-    
+
     @abstractmethod
     def get_user_role(self, project_id: UUID, user_id: UUID) -> Optional[ProjectRole]:
         """Get user's role in a project"""
