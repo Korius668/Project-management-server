@@ -11,6 +11,7 @@ from app.adapters.sqlalchemy.models import (
 from app.domain.models import ProjectMembership, ProjectRole
 from app.domain.exceptions import ProjectMembershipNotFoundError
 
+
 @pytest.fixture
 def mock_session():
     return Mock()
