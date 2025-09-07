@@ -8,13 +8,22 @@ from app.domain.exceptions import (
     PermissionDeniedError,
     ProjectAlreadyExistsError,
     UserAlreadyMemberError,
-    InsufficientPermissionsError
+    InsufficientPermissionsError,
 )
-from app.ports.repositories import ProjectsRepository, UsersRepository, ProjectMembershipsRepository
+from app.ports.repositories import (
+    ProjectsRepository,
+    UsersRepository,
+    ProjectMembershipsRepository,
+)
 
 
 class ProjectsService:
-    def __init__(self, projects_repo: ProjectsRepository, users_repo: UsersRepository, memberships_repo: ProjectMembershipsRepository):
+    def __init__(
+        self,
+        projects_repo: ProjectsRepository,
+        users_repo: UsersRepository,
+        memberships_repo: ProjectMembershipsRepository,
+    ):
         self.projects_repo = projects_repo
         self.users_repo = users_repo
         self.memberships_repo = memberships_repo
@@ -31,7 +40,7 @@ class ProjectsService:
         membership = ProjectMembership(
             project_id=created_project.id,
             user_id=owner_id,
-            role=ProjectRole.owner  # Fixed enum value from OWNER to owner
+            role=ProjectRole.owner,  # Fixed enum value from OWNER to owner
         )
         self.memberships_repo.add(membership)
 
@@ -44,7 +53,9 @@ class ProjectsService:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         membership = self.memberships_repo.get(project_id, user_id)
-        if not membership or membership.role == ProjectRole.viewer:  # Fixed enum value from VIEWER to viewer
+        if (
+            not membership or membership.role == ProjectRole.viewer
+        ):  # Fixed enum value from VIEWER to viewer
             raise PermissionDeniedError("You don't have access to this project")
 
         return project
@@ -63,16 +74,25 @@ class ProjectsService:
                 projects.append(project)
         return projects
 
-    def update_project(self, project_id: UUID, user_id: UUID, name: Optional[str] = None, 
-                      description: Optional[str] = None) -> Project:
+    def update_project(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Project:
         """Aktualizuje projekt jeśli użytkownik ma uprawnienia."""
         project = self.projects_repo.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         membership = self.memberships_repo.get(project_id, user_id)
-        if not membership or membership.role == ProjectRole.viewer:  # Fixed enum value from VIEWER to viewer
-            raise PermissionDeniedError("You don't have permission to edit this project")
+        if (
+            not membership or membership.role == ProjectRole.viewer
+        ):  # Fixed enum value from VIEWER to viewer
+            raise PermissionDeniedError(
+                "You don't have permission to edit this project"
+            )
 
         if name is not None:
             project.name = name
@@ -88,20 +108,31 @@ class ProjectsService:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         membership = self.memberships_repo.get(project_id, user_id)
-        if not membership or membership.role != ProjectRole.owner:  # Fixed enum value from VIEWER to viewer
-            raise PermissionDeniedError("You don't have permission to delete this project")
+        if (
+            not membership or membership.role != ProjectRole.owner
+        ):  # Fixed enum value from VIEWER to viewer
+            raise PermissionDeniedError(
+                "You don't have permission to delete this project"
+            )
 
         self.projects_repo.delete(project_id)
 
-    def invite_user_to_project(self, project_id: UUID, inviter_id: UUID, 
-                              invited_user_id: UUID, role: ProjectRole) -> ProjectMembership:
+    def invite_user_to_project(
+        self,
+        project_id: UUID,
+        inviter_id: UUID,
+        invited_user_id: UUID,
+        role: ProjectRole,
+    ) -> ProjectMembership:
         """Zaprasza użytkownika do projektu."""
         project = self.projects_repo.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         inviter_membership = self.memberships_repo.get(project_id, inviter_id)
-        if not inviter_membership or inviter_membership.role == ProjectRole.viewer:  # Fixed enum value from VIEWER to viewer
+        if (
+            not inviter_membership or inviter_membership.role == ProjectRole.viewer
+        ):  # Fixed enum value from VIEWER to viewer
             raise PermissionDeniedError("You don't have permission to invite users")
 
         invited_user = self.users_repo.get(invited_user_id)
@@ -113,49 +144,65 @@ class ProjectsService:
             raise UserAlreadyMemberError("User is already a member of this project")
 
         membership = ProjectMembership(
-            project_id=project_id,
-            user_id=invited_user_id,
-            role=role
+            project_id=project_id, user_id=invited_user_id, role=role
         )
         return self.memberships_repo.add(membership)
 
-    def update_user_role(self, project_id: UUID, updater_id: UUID, 
-                        target_user_id: UUID, newrole: ProjectRole) -> ProjectMembership:
+    def update_user_role(
+        self,
+        project_id: UUID,
+        updater_id: UUID,
+        target_user_id: UUID,
+        newrole: ProjectRole,
+    ) -> ProjectMembership:
         """Aktualizuje rolę użytkownika w projekcie."""
         project = self.projects_repo.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         updater_membership = self.memberships_repo.get(project_id, updater_id)
-        if not updater_membership or updater_membership.role != ProjectRole.owner:  # Fixed enum value from OWNER to owner
-            raise InsufficientPermissionsError("Only project owner can update user roles")
+        if (
+            not updater_membership or updater_membership.role != ProjectRole.owner
+        ):  # Fixed enum value from OWNER to owner
+            raise InsufficientPermissionsError(
+                "Only project owner can update user roles"
+            )
 
         target_membership = self.memberships_repo.get(project_id, target_user_id)
         if not target_membership:
             raise UserNotFoundError("User is not a member of this project")
 
-        if target_membership.role == ProjectRole.owner:  # Fixed enum value from OWNER to owner
+        if (
+            target_membership.role == ProjectRole.owner
+        ):  # Fixed enum value from OWNER to owner
             raise PermissionDeniedError("Cannot change owner role")
 
         target_membership.role = newrole
         return self.memberships_repo.update(target_membership)
 
-    def remove_user_from_project(self, project_id: UUID, remover_id: UUID, 
-                                target_user_id: UUID) -> bool:
+    def remove_user_from_project(
+        self, project_id: UUID, remover_id: UUID, target_user_id: UUID
+    ) -> bool:
         """Usuwa użytkownika z projektu."""
         project = self.projects_repo.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         remover_membership = self.memberships_repo.get(project_id, remover_id)
-        if not remover_membership or remover_membership.role == ProjectRole.viewer:  # Fixed enum value from VIEWER to viewer
-            raise InsufficientPermissionsError("You don't have permission to remove users")
+        if (
+            not remover_membership or remover_membership.role == ProjectRole.viewer
+        ):  # Fixed enum value from VIEWER to viewer
+            raise InsufficientPermissionsError(
+                "You don't have permission to remove users"
+            )
 
         target_membership = self.memberships_repo.get(project_id, target_user_id)
         if not target_membership:
             raise UserNotFoundError("User is not a member of this project")
 
-        if target_membership.role == ProjectRole.owner:  # Fixed enum value from OWNER to owner
+        if (
+            target_membership.role == ProjectRole.owner
+        ):  # Fixed enum value from OWNER to owner
             raise PermissionDeniedError("Cannot remove project owner")
 
         return self.memberships_repo.delete(project_id, target_user_id)
