@@ -1,7 +1,7 @@
 import argparse
 import uvicorn
 
-from app.config import Settings, Secrets
+from app.config import Settings, secrets
 from app.logger.logger import logger
 
 
@@ -18,8 +18,6 @@ def main():
     args = parser.parse_args()
 
     app_env = resolve_env(args.dev)
-
-    secrets = Secrets()
 
     import app.config
 
