@@ -19,7 +19,7 @@ from app.ports.repositories import (
 
 class DependencyContainer:
     """Dependency Injection Container zgodny z hexagonalną architekturą."""
-    
+
     def __init__(self, session: Session):
         self.session = session
         self._users_repo = None
@@ -52,7 +52,9 @@ class DependencyContainer:
     def memberships_repository(self) -> ProjectMembershipsRepository:
         """Lazy loading memberships repository."""
         if self._memberships_repo is None:
-            self._memberships_repo = SqlAlchemyProjectMembershipsRepository(self.session)
+            self._memberships_repo = SqlAlchemyProjectMembershipsRepository(
+                self.session
+            )
         return self._memberships_repo
 
     def users_service(self) -> UsersService:
@@ -64,7 +66,7 @@ class DependencyContainer:
         return ProjectsService(
             projects_repo=self.projects_repository,
             users_repo=self.users_repository,
-            memberships_repo=self.memberships_repository
+            memberships_repo=self.memberships_repository,
         )
 
 

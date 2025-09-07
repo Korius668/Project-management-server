@@ -12,20 +12,19 @@ security = HTTPBearer()
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ) -> User:
     """Extract current user from JWT token"""
     token = credentials.credentials
     user_id = get_user_id_from_token(token)
-    
+
     container = get_container(session)
     users_service = container.users_service()
-    
+
     user = users_service._repository.get_by_id(user_id)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
-    
+
     return user
