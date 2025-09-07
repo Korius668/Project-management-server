@@ -6,7 +6,6 @@ from app.adapters.sqlalchemy.models import UserORM
 from app.domain.models import User
 
 
-
 @pytest.fixture
 def mock_query_chain(mock_session):
     """Pomocniczy fixture do chainowania query()"""

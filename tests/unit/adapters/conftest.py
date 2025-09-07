@@ -47,7 +47,7 @@ def sample_membership():
         project_id=uuid4(), user_id=uuid4(), role=ProjectRole.editor
     )
 
+
 @pytest.fixture
 def mock_session():
     return Mock()
-

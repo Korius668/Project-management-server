@@ -14,7 +14,7 @@ class UsersRepository(ABC):
     @abstractmethod
     def get(self, user_id: UUID) -> User:
         """Retrieve a user by id"""
-    
+
     @abstractmethod
     def get_by_name(self, name: str) -> Optional[User]:
         """Retrieve a user by name"""
@@ -123,7 +123,3 @@ class ProjectMembershipsRepository(ABC):
     @abstractmethod
     def count_by_project(self, project_id: UUID) -> int:
         """Count members in a project"""
-
-    @abstractmethod
-    def get_user_role(self, project_id: UUID, user_id: UUID) -> Optional[ProjectRole]:
-        """Get user's role in a project"""

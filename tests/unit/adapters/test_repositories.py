@@ -16,10 +16,10 @@ from app.domain.exceptions import (
     DocumentAlreadyExistsError,
 )
 
+
 @pytest.fixture
 def repo(mock_session):
     return SqlAlchemyProjectsRepository(mock_session)
-
 
 
 class TestSqlAlchemyProjectsRepository:

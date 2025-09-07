@@ -14,6 +14,7 @@ from app.domain.exceptions import (
     UserNotFoundError,
     ProjectNotFoundError,
     DocumentNotFoundError,
+    ProjectMembershipNotFoundError,
 )
 from app.ports.repositories import (
     UsersRepository,
@@ -27,6 +28,7 @@ from app.adapters.sqlalchemy.models import (
     DocumentORM,
     ProjectMembershipORM,
 )
+
 
 class SqlAlchemyUsersRepository(UsersRepository):
     def __init__(self, session: Session):
@@ -94,7 +96,7 @@ class SqlAlchemyUsersRepository(UsersRepository):
             return None
         except SQLAlchemyError as e:
             raise DatabaseError(f"Database error during user retrieval: {e}")
-    
+
     def get_by_name(self, name: str) -> Optional[User]:
         try:
             orm = self.session.query(UserORM).filter_by(email=name).first()
@@ -103,7 +105,7 @@ class SqlAlchemyUsersRepository(UsersRepository):
             return None
         except SQLAlchemyError as e:
             raise DatabaseError(f"Database error during user retrieval: {e}")
-       
+
     def list(self) -> List[User]:
         try:
             orms = self.session.query(UserORM).all()
@@ -366,110 +368,162 @@ class SqlAlchemyProjectMembershipsRepository(ProjectMembershipsRepository):
 
     def add(self, membership: ProjectMembership) -> ProjectMembership:
         """Add or update membership - if exists, update the role"""
-        orm = ProjectMembershipORM(
-            project_id=membership.project_id,
-            user_id=membership.user_id,
-            role=membership.role,
-        )
-
-        self.session.merge(orm)
-        self.session.commit()
-        return membership
+        try:
+            orm = ProjectMembershipORM(
+                project_id=membership.project_id,
+                user_id=membership.user_id,
+                role=membership.role,
+            )
+            self.session.merge(orm)
+            self.session.commit()
+            return membership
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise DatabaseError(f"Database error during adding membership: {e}")
 
     def get(self, project_id: UUID, user_id: UUID) -> Optional[ProjectMembership]:
-        orm = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id, user_id=user_id)
-            .first()
-        )
-        return (
-            ProjectMembership.model_validate(orm, from_attributes=True) if orm else None
-        )
+        try:
+            orm = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id, user_id=user_id)
+                .first()
+            )
+            return (
+                ProjectMembership.model_validate(orm, from_attributes=True)
+                if orm
+                else None
+            )
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Database error during membership retrieval: {e}")
 
     def update(self, membership: ProjectMembership) -> Optional[ProjectMembership]:
-        orm = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=membership.project_id, user_id=membership.user_id)
-            .first()
-        )
+        try:
+            orm = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=membership.project_id, user_id=membership.user_id)
+                .first()
+            )
 
-        if not orm:
-            return None
+            if not orm:
+                raise ProjectMembershipNotFoundError(
+                    f"Membership not found for user {membership.user_id} in project {membership.project_id}"
+                )
 
-        orm.role = membership.role
-        self.session.commit()
-        return membership
+            orm.role = membership.role
+            self.session.commit()
+            return membership
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise DatabaseError(f"Database error during membership update: {e}")
 
     def list(self):
         """Return all memberships"""
-        orms = self.session.query(ProjectMembershipORM).all()
-        return [
-            ProjectMembership.model_validate(orm, from_attributes=True) for orm in orms
-        ]
+        try:
+            orms = self.session.query(ProjectMembershipORM).all()
+            return [
+                ProjectMembership.model_validate(orm, from_attributes=True)
+                for orm in orms
+            ]
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Database error during membership listing: {e}")
 
     def list_by_project(self, project_id) -> List[ProjectMembership]:
         """Return all memberships for a project"""
-        orms = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id)
-            .all()
-        )
-        return [
-            ProjectMembership.model_validate(orm, from_attributes=True) for orm in orms
-        ]
+        try:
+            orms = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id)
+                .all()
+            )
+            return [
+                ProjectMembership.model_validate(orm, from_attributes=True)
+                for orm in orms
+            ]
+        except SQLAlchemyError as e:
+            raise DatabaseError(
+                f"Database error during project membership listing: {e}"
+            )
 
     def list_by_user(self, user_id) -> List[ProjectMembership]:
         """Return all memberships for a user"""
-        orms = self.session.query(ProjectMembershipORM).filter_by(user_id=user_id).all()
-        return [
-            ProjectMembership.model_validate(orm, from_attributes=True) for orm in orms
-        ]
+        try:
+            orms = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(user_id=user_id)
+                .all()
+            )
+            return [
+                ProjectMembership.model_validate(orm, from_attributes=True)
+                for orm in orms
+            ]
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Database error during user membership listing: {e}")
 
     def delete(self, project_id: UUID, user_id: UUID) -> bool:
-        result = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id, user_id=user_id)
-            .delete()
-        )
-        self.session.commit()
-        return result > 0
+        try:
+            result = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id, user_id=user_id)
+                .delete()
+            )
+            if result == 0:
+                raise ProjectMembershipNotFoundError(
+                    f"Membership not found for user {user_id} in project {project_id}"
+                )
+            self.session.commit()
+            return result > 0
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise DatabaseError(f"Database error during membership deletion: {e}")
 
     def delete_by_project(self, project_id: UUID) -> int:
-        count = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id)
-            .delete()
-        )
-        self.session.commit()
-        return count
+        try:
+            count = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id)
+                .delete()
+            )
+            self.session.commit()
+            return count
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise DatabaseError(
+                f"Database error during project membership deletion: {e}"
+            )
 
     def delete_by_user(self, user_id: UUID) -> int:
         """Delete all memberships for a user. Returns count of deleted items"""
-        count = (
-            self.session.query(ProjectMembershipORM).filter_by(user_id=user_id).delete()
-        )
-        self.session.commit()
-        return count
+        try:
+            count = (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(user_id=user_id)
+                .delete()
+            )
+            self.session.commit()
+            return count
+        except SQLAlchemyError as e:
+            self.session.rollback()
+            raise DatabaseError(f"Database error during user membership deletion: {e}")
 
     def exists(self, project_id: UUID, user_id: UUID) -> bool:
-        return self.session.query(
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id, user_id=user_id)
-            .exists()
-        ).scalar()
+        try:
+            return self.session.query(
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id, user_id=user_id)
+                .exists()
+            ).scalar()
+        except SQLAlchemyError as e:
+            raise DatabaseError(
+                f"Database error during membership existence check: {e}"
+            )
 
     def count_by_project(self, project_id: UUID) -> int:
         """Count members in a project"""
-        return (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id)
-            .count()
-        )
-
-    def get_user_role(self, project_id: UUID, user_id: UUID) -> Optional[ProjectRole]:
-        orm = (
-            self.session.query(ProjectMembershipORM)
-            .filter_by(project_id=project_id, user_id=user_id)
-            .first()
-        )
-        return ProjectRole(orm.role) if orm else None
+        try:
+            return (
+                self.session.query(ProjectMembershipORM)
+                .filter_by(project_id=project_id)
+                .count()
+            )
+        except SQLAlchemyError as e:
+            raise DatabaseError(f"Database error during membership count: {e}")

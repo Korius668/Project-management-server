@@ -9,7 +9,7 @@ from app.adapters.sqlalchemy.models import (
     ProjectMembershipORM,
 )
 from app.domain.models import ProjectMembership, ProjectRole
-
+from app.domain.exceptions import ProjectMembershipNotFoundError
 
 @pytest.fixture
 def mock_session():
@@ -91,8 +91,9 @@ class TestUpdateMembership:
     def test_missing(self, sample_membership, mock_query_chain, repo):
         _, mock_filter = mock_query_chain
         mock_filter.first.return_value = None
-
-        result = repo.update(sample_membership)
+        result = None
+        with pytest.raises(ProjectMembershipNotFoundError):
+            result = repo.update(sample_membership)
 
         assert result is None
         repo.session.commit.assert_not_called()
@@ -145,10 +146,11 @@ class TestDeleteMemberships:
     def test_delete_one_not_found(self, repo, mock_query_chain):
         _, mock_filter = mock_query_chain
         mock_filter.delete.return_value = 0
-
-        result = repo.delete("proj", "user")
-
-        assert result is False
+        result = None
+        with pytest.raises(ProjectMembershipNotFoundError):
+            result = repo.delete("proj", "user")
+        assert result is None
+        repo.session.commit.assert_not_called()
 
     def test_delete_by_project(self, repo, mock_query_chain):
         _, mock_filter = mock_query_chain
@@ -197,24 +199,3 @@ class TestCountByProject:
         result = repo.count_by_project("proj")
 
         assert result == 42
-
-
-class TestGetUserRole:
-    def test_existing(self, repo, mock_query_chain):
-        _, mock_filter = mock_query_chain
-        orm_instance = Mock(role="owner")
-        mock_filter.first.return_value = orm_instance
-        ProjectRoleClass = ProjectRole
-
-        result = repo.get_user_role("proj", "user")
-
-        assert isinstance(result, ProjectRoleClass)
-        assert result.value == "owner"
-
-    def test_missing(self, repo, mock_query_chain):
-        _, mock_filter = mock_query_chain
-        mock_filter.first.return_value = None
-
-        result = repo.get_user_role("proj", "user")
-
-        assert result is None
