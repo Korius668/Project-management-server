@@ -16,7 +16,11 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    env:
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        ALGORITHM: ${{ secrets.ALGORITHM }}
+        ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.10
