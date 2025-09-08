@@ -127,7 +127,7 @@ class ProjectsService:
             raise InsufficientPermissionsError(
                 "Only project owner can delete the project"
             )
-
+        self.memberships_repo.delete_by_project(project_id)
         self.projects_repo.delete(project_id)
 
     def invite_user_to_project(

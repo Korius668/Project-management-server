@@ -3,50 +3,65 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 from app.usecases.projects import ProjectsService
-from app.domain.models import Project, ProjectMembership, ProjectRole
+from app.domain.models import ProjectMembership, ProjectRole
 from app.domain.exceptions import (
     ProjectNotFoundError,
     UserNotFoundError,
-    PermissionDeniedError,
-    UserAlreadyMemberError,
     InsufficientPermissionsError,
+    UserAlreadyMemberError,
+    PermissionDeniedError,
+)
+from app.api.schemas.responses import (
+    ProjectResponse,
+    ProjectInfoResponse,
+    ProjectListResponse,
 )
 
 
 @pytest.fixture
 def service(
-    mock_projects_repository, mock_users_repository, mock_memberships_repository
+    mock_projects_repository,
+    mock_users_repository,
+    mock_memberships_repository,
+    mock_documents_repository,
+    mock_file_storage,
 ):
+    """ProjectsService instance with mocked dependencies"""
     return ProjectsService(
-        mock_projects_repository, mock_users_repository, mock_memberships_repository
+        mock_projects_repository,
+        mock_users_repository,
+        mock_memberships_repository,
+        mock_documents_repository,
+        mock_file_storage,
     )
 
 
 class TestCreateProject:
-    def test_create_project_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_users_repository,
         mock_memberships_repository,
-        sample_user,
+        user1,
         sample_project,
         service,
     ):
         # Given
-        mock_users_repository.get.return_value = sample_user
+        mock_users_repository.get.return_value = user1
         mock_projects_repository.add.return_value = sample_project
         mock_memberships_repository.add.return_value = Mock()
 
         # When
-        result = service.create_project("Test Project", "Description", sample_user.id)
+        result = service.create_project("Test Project", "Description", user1.id)
 
         # Then
+        assert isinstance(result, ProjectResponse)
         assert result.name == "Test Project"
-        mock_users_repository.get.assert_called_once_with(sample_user.id)
+        mock_users_repository.get.assert_called_once_with(user1.id)
         mock_projects_repository.add.assert_called_once()
         mock_memberships_repository.add.assert_called_once()
 
-    def test_create_project_user_not_found(self, mock_users_repository, service):
+    def test_user_not_found(self, mock_users_repository, service):
         # Given
         mock_users_repository.get.return_value = None
         user_id = uuid4()
@@ -57,7 +72,8 @@ class TestCreateProject:
 
 
 class TestGetProject:
-    def test_get_project_success(
+
+    def test_success(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -73,10 +89,11 @@ class TestGetProject:
         result = service.get_project(sample_project.id, sample_membership.user_id)
 
         # Then
-        assert result == sample_project
+        assert isinstance(result, ProjectResponse)
+        assert result.id == str(sample_project.id)
         mock_projects_repository.get.assert_called_once_with(sample_project.id)
 
-    def test_get_project_not_found(self, mock_projects_repository, service):
+    def test_not_found(self, mock_projects_repository, service):
         # Given
         mock_projects_repository.get.return_value = None
         project_id = uuid4()
@@ -86,7 +103,7 @@ class TestGetProject:
         with pytest.raises(ProjectNotFoundError):
             service.get_project(project_id, user_id)
 
-    def test_get_project_no_permission(
+    def test_no_permission(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -103,8 +120,39 @@ class TestGetProject:
             service.get_project(sample_project.id, user_id)
 
 
+class TestGetProjectInfo:
+    def test_success(
+        self,
+        mock_projects_repository,
+        mock_users_repository,
+        mock_memberships_repository,
+        mock_documents_repository,
+        user1,
+        project1,
+        document1,
+        membership1,
+        service,
+    ):
+        # Given
+
+        mock_projects_repository.get.return_value = project1
+        mock_memberships_repository.get.return_value = membership1
+        mock_users_repository.get.return_value = user1
+        mock_memberships_repository.list_by_project.return_value = [membership1]
+        mock_documents_repository.list_by_project.return_value = [document1]
+
+        # When
+        result = service.get_project_info(project1.id, user1.id)
+
+        # Then
+        assert isinstance(result, ProjectInfoResponse)
+        assert result.project.id == str(project1.id)
+        assert len(result.members) == 1
+        assert len(result.documents) == 1
+
+
 class TestUpdateProject:
-    def test_update_project_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -125,10 +173,11 @@ class TestUpdateProject:
         )
 
         # Then
-        assert result == sample_project
+        assert isinstance(result, ProjectResponse)
+        assert result.name == "New Name"
         mock_projects_repository.update.assert_called_once()
 
-    def test_update_project_viewer_permission_denied(
+    def test_denied(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -143,13 +192,13 @@ class TestUpdateProject:
         )
 
         # When & Then
-        with pytest.raises(PermissionDeniedError):
+        with pytest.raises(InsufficientPermissionsError):
             service.update_project(sample_project.id, user_id, "New Name")
 
 
 class TestDeleteProject:
 
-    def test_delete_project_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -163,6 +212,7 @@ class TestDeleteProject:
         mock_memberships_repository.get.return_value = ProjectMembership(
             project_id=sample_project.id, user_id=user_id, role=ProjectRole.owner
         )
+        mock_memberships_repository.delete_by_project.return_value = 1
         mock_projects_repository.delete.return_value = None
 
         # When
@@ -172,18 +222,13 @@ class TestDeleteProject:
         assert result is None
         mock_projects_repository.delete.assert_called_once_with(sample_project.id)
 
-    def test_delete_project_non_owner_denied(
+    def test_non_owner_denied(
         self,
         mock_projects_repository,
-        mock_users_repository,
         mock_memberships_repository,
         sample_project,
         service,
     ):
-        # Given
-        service = ProjectsService(
-            mock_projects_repository, mock_users_repository, mock_memberships_repository
-        )
         user_id = uuid4()
         mock_projects_repository.get.return_value = sample_project
         mock_memberships_repository.get.return_value = ProjectMembership(
@@ -191,84 +236,126 @@ class TestDeleteProject:
         )
 
         # When & Then
-        with pytest.raises(PermissionDeniedError):
+        with pytest.raises(InsufficientPermissionsError):
             service.delete_project(sample_project.id, user_id)
 
 
 class TestInviteUserToProject:
 
-    def test_invite_user_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_users_repository,
         mock_memberships_repository,
+        user1,
+        another_user,
         sample_project,
-        sample_user,
+        sample_membership,
         service,
     ):
         # Given
-        inviter_id = sample_project.owner_id
-        old_membership = ProjectMembership(
-            project_id=sample_project.id, user_id=inviter_id, role=ProjectRole.owner
-        )
-        new_membership = ProjectMembership(
+        invited_membership = ProjectMembership(
             project_id=sample_project.id,
-            user_id=sample_user.id,
+            user_id=another_user.id,
             role=ProjectRole.editor,
         )
 
         mock_projects_repository.get.return_value = sample_project
-        mock_memberships_repository.get.side_effect = [
-            old_membership,
-            None,
-        ]  # inviter is owner, invited user not member
-        mock_users_repository.get.return_value = sample_user
-        mock_memberships_repository.add.return_value = new_membership
+        mock_memberships_repository.get.side_effect = [sample_membership, None]
+        mock_users_repository.get.return_value = another_user
+        mock_memberships_repository.add.return_value = invited_membership
 
         # When
         result = service.invite_user_to_project(
-            sample_project.id, inviter_id, sample_user.id, ProjectRole.editor
+            sample_project.id, user1.id, another_user.id, ProjectRole.editor
         )
 
         # Then
-        assert result == new_membership
+        assert isinstance(result, ProjectMembership)
+        assert result.role == ProjectRole.editor
         mock_memberships_repository.add.assert_called_once()
 
-    def test_invite_user_already_member(
+    def test_user_already_member(
         self,
         mock_projects_repository,
         mock_users_repository,
         mock_memberships_repository,
+        user1,
+        another_user,
         sample_project,
-        sample_user,
+        sample_membership,
+        editor_membership,
         service,
     ):
         # Given
-        inviter_id = uuid4()
-        old_membership = ProjectMembership(
-            project_id=sample_project.id, user_id=inviter_id, role=ProjectRole.owner
-        )
-        new_membership = ProjectMembership(
-            project_id=sample_project.id,
-            user_id=sample_user.id,
-            role=ProjectRole.viewer,
-        )
         mock_projects_repository.get.return_value = sample_project
         mock_memberships_repository.get.side_effect = [
-            old_membership,
-            new_membership,
-        ]  # inviter is owner, user already member
-        mock_users_repository.get.return_value = sample_user
+            sample_membership,
+            editor_membership,
+        ]
+        mock_users_repository.get.return_value = another_user
 
         # When & Then
         with pytest.raises(UserAlreadyMemberError):
             service.invite_user_to_project(
-                sample_project.id, inviter_id, sample_user.id, ProjectRole.editor
+                sample_project.id, user1.id, another_user.id, ProjectRole.editor
             )
 
 
+class TestGetUserProjects:
+    def test_success(
+        self,
+        mock_users_repository,
+        mock_memberships_repository,
+        mock_projects_repository,
+        user1,
+        sample_project,
+        service,
+    ):
+        # Given
+        membership = ProjectMembership(
+            project_id=sample_project.id, user_id=user1.id, role=ProjectRole.editor
+        )
+        mock_users_repository.get.return_value = user1
+        mock_memberships_repository.list_by_user.return_value = [membership]
+        mock_projects_repository.get.return_value = sample_project
+
+        # When
+        result = service.get_user_projects(user1.id)
+
+        # Then
+        assert isinstance(result, ProjectListResponse)
+        assert len(result.projects) == 1
+        assert result.projects[0].id == str(sample_project.id)
+        mock_users_repository.get.assert_called_once_with(user1.id)
+        mock_memberships_repository.list_by_user.assert_called_once_with(user1.id)
+
+    def test_user_not_found(self, mock_users_repository, service):
+        # Given
+        user_id = uuid4()
+        mock_users_repository.get.return_value = None
+
+        # When & Then
+        with pytest.raises(UserNotFoundError):
+            service.get_user_projects(user_id)
+
+    def test_empty_list(
+        self, mock_users_repository, mock_memberships_repository, user1, service
+    ):
+        # Given
+        mock_users_repository.get.return_value = user1
+        mock_memberships_repository.list_by_user.return_value = []
+
+        # When
+        result = service.get_user_projects(user1.id)
+
+        # Then
+        assert isinstance(result, ProjectListResponse)
+        assert result.projects == []
+
+
 class TestUpdateUserRole:
-    def test_update_user_role_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -303,7 +390,7 @@ class TestUpdateUserRole:
         assert result == target_membership
         mock_memberships_repository.update.assert_called_once()
 
-    def test_update_user_role_not_owner(
+    def test_not_owner(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -326,7 +413,7 @@ class TestUpdateUserRole:
                 sample_project.id, updater_id, target_user_id, ProjectRole.editor
             )
 
-    def test_update_user_role_target_not_member(
+    def test_target_not_member(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -349,7 +436,7 @@ class TestUpdateUserRole:
                 sample_project.id, updater_id, target_user_id, ProjectRole.editor
             )
 
-    def test_update_user_role_cannot_change_owner(
+    def test_cannot_change_owner(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -373,14 +460,14 @@ class TestUpdateUserRole:
         ]
 
         # When & Then
-        with pytest.raises(PermissionDeniedError):
+        with pytest.raises(InsufficientPermissionsError):
             service.update_user_role(
                 sample_project.id, updater_id, target_user_id, ProjectRole.editor
             )
 
 
 class TestRemoveUserFromProject:
-    def test_remove_user_from_project_success(
+    def test_success(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -417,7 +504,7 @@ class TestRemoveUserFromProject:
             sample_project.id, target_user_id
         )
 
-    def test_remove_user_from_project_no_permission(
+    def test_no_permission(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -440,7 +527,7 @@ class TestRemoveUserFromProject:
                 sample_project.id, remover_id, target_user_id
             )
 
-    def test_remove_user_from_project_target_not_member(
+    def test_target_not_member(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -463,7 +550,7 @@ class TestRemoveUserFromProject:
                 sample_project.id, remover_id, target_user_id
             )
 
-    def test_remove_user_from_project_cannot_remove_owner(
+    def test_cannot_remove_owner(
         self,
         mock_projects_repository,
         mock_memberships_repository,
@@ -487,7 +574,7 @@ class TestRemoveUserFromProject:
         ]
 
         # When & Then
-        with pytest.raises(PermissionDeniedError):
+        with pytest.raises(InsufficientPermissionsError):
             service.remove_user_from_project(
                 sample_project.id, remover_id, target_user_id
             )
