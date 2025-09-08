@@ -7,7 +7,6 @@ from app.domain.models import Document, User, ProjectRole, Project, ProjectMembe
 from app.domain.exceptions import DocumentNotFoundError, InsufficientPermissionsError
 
 
-
 @pytest.fixture
 def documents_service(
     mock_documents_repository, mock_memberships_repository, mock_file_storage
@@ -17,7 +16,6 @@ def documents_service(
         memberships_repo=mock_memberships_repository,
         file_storage=mock_file_storage,
     )
-
 
 
 class TestUploadDocument:
