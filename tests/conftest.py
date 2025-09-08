@@ -4,12 +4,14 @@ from unittest.mock import Mock
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
-from app.domain.models import User, Project, ProjectMembership, ProjectRole
+from app.domain.models import User, Project, ProjectMembership, ProjectRole, Document
 from app.ports.repositories import (
     UsersRepository,
     ProjectsRepository,
     ProjectMembershipsRepository,
+    DocumentsRepository,
 )
+from app.ports.file_storage import FileStoragePort
 
 
 from app.main import app
@@ -52,10 +54,13 @@ def mock_session():
     return Mock(spec=Session)
 
 
-@pytest.fixture
-def mock_memberships_repository():
-    """Mock project memberships repository"""
-    return Mock(spec=ProjectMembershipsRepository)
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """Setup test environment variables"""
+    import os
+
+    os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 
 @pytest.fixture
@@ -71,6 +76,24 @@ def mock_projects_repository():
 
 
 @pytest.fixture
+def mock_memberships_repository():
+    """Mock project memberships repository"""
+    return Mock(spec=ProjectMembershipsRepository)
+
+
+@pytest.fixture
+def mock_documents_repository():
+    """Mock documents repository"""
+    return Mock(spec=DocumentsRepository)
+
+
+@pytest.fixture
+def mock_file_storage():
+    """Mock file storage port"""
+    return Mock(spec=FileStoragePort)
+
+
+@pytest.fixture(scope="session")
 def sample_user():
     """Sample user for testing"""
     return User(
@@ -81,7 +104,7 @@ def sample_user():
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sample_project():
     """Sample project for testing"""
     return Project(
@@ -92,9 +115,24 @@ def sample_project():
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sample_membership():
     """Sample project membership for testing"""
     return ProjectMembership(
-        project_id=uuid4(), user_id=uuid4(), role=ProjectRole.editor
+        project_id=uuid4(),
+        user_id=uuid4(),
+        role=ProjectRole.editor,  # Fixed enum value from EDITOR to editor
+    )
+
+
+@pytest.fixture(scope="session")
+def sample_document():
+    return Document(
+        id=uuid4,
+        project_id=uuid4,
+        filename="sample_document",
+        content_type="sample_type",
+        size_bytes=132156,
+        storage_path="sajmasfl",
+        metadata=None,
     )
