@@ -62,5 +62,5 @@ class ProjectMembershipNotFoundError(DomainError):
     pass
 
 
-class InsufficientPermissionsError(DomainError):
+class InsufficientPermissionsError(PermissionDeniedError):
     pass

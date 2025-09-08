@@ -9,12 +9,15 @@ from app.adapters.sqlalchemy.repositories import (
 )
 from app.usecases.auth import UsersService
 from app.usecases.projects import ProjectsService
+from app.usecases.documents import DocumentsService  # Added DocumentsService import
 from app.ports.repositories import (
     UsersRepository,
     ProjectsRepository,
     DocumentsRepository,
     ProjectMembershipsRepository,
 )
+from app.ports.file_storage import FileStoragePort
+from app.adapters.file_storage.local_storage import LocalFileStorageAdapter
 
 
 class DependencyContainer:
@@ -26,6 +29,7 @@ class DependencyContainer:
         self._projects_repo = None
         self._documents_repo = None
         self._memberships_repo = None
+        self._file_storage = None
 
     @property
     def users_repository(self) -> UsersRepository:
@@ -57,6 +61,13 @@ class DependencyContainer:
             )
         return self._memberships_repo
 
+    @property
+    def file_storage(self) -> FileStoragePort:
+        """Lazy loading file storage."""
+        if self._file_storage is None:
+            self._file_storage = LocalFileStorageAdapter()
+        return self._file_storage
+
     def users_service(self) -> UsersService:
         """Tworzy UsersService z wstrzykniętymi zależnościami."""
         return UsersService(self.users_repository)
@@ -67,6 +78,16 @@ class DependencyContainer:
             projects_repo=self.projects_repository,
             users_repo=self.users_repository,
             memberships_repo=self.memberships_repository,
+            documents_repo=self.documents_repository,  # Added documents repository
+            file_storage=self.file_storage,  # Added file storage dependency
+        )
+
+    def documents_service(self) -> DocumentsService:
+        """Tworzy DocumentsService z wstrzykniętymi zależnościami."""
+        return DocumentsService(
+            documents_repo=self.documents_repository,
+            memberships_repo=self.memberships_repository,
+            file_storage=self.file_storage,
         )
 
 
