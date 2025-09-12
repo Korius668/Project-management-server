@@ -1,6 +1,5 @@
 import pytest
 import asyncio
-from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -34,7 +33,7 @@ def test_secrets():
         access_token_expire_minutes=30,
         file_storage_path="./test_files",
         max_file_size_mb=10,
-        database_url_prod=None
+        database_url_prod=None,
     )
 
 
@@ -51,7 +50,7 @@ def test_engine():
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
-        echo=False  # Set to True for SQL debugging
+        echo=False,  # Set to True for SQL debugging
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -61,7 +60,9 @@ def test_engine():
 @pytest.fixture(scope="function")
 def test_session(test_engine):
     """Create a test database session."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    TestingSessionLocal = sessionmaker(
+        autocommit=False, autoflush=False, bind=test_engine
+    )
     session = TestingSessionLocal()
     try:
         yield session
@@ -92,19 +93,20 @@ def test_app(test_session, test_settings, temp_file_storage):
     # Override dependencies
     def override_get_session():
         return test_session
-    
+
     app.dependency_overrides[get_session] = override_get_session
-    
+
     # Override file storage path in settings directly
     test_settings.secrets.file_storage_path = str(temp_file_storage)
-    
+
     # Override the global settings
     from app.config import settings
+
     original_settings = settings
     settings = test_settings
-    
+
     yield app
-    
+
     # Clean up
     app.dependency_overrides.clear()
     settings = original_settings
@@ -122,7 +124,7 @@ def sample_user_data():
     return {
         "username": f"testuser_{uuid.uuid4().hex[:8]}",
         "email": f"test_{uuid.uuid4().hex[:8]}@example.com",
-        "password": "testpassword123"
+        "password": "testpassword123",
     }
 
 
@@ -131,7 +133,7 @@ def sample_project_data():
     """Sample project data for testing."""
     return {
         "name": f"Test Project {uuid.uuid4().hex[:8]}",
-        "description": "A test project for integration testing"
+        "description": "A test project for integration testing",
     }
 
 
@@ -139,28 +141,25 @@ def sample_project_data():
 def authenticated_user(test_client, sample_user_data):
     """Create and authenticate a test user."""
     # Create user
-    response = test_client.post(
-        "/auth/create_user",
-        params=sample_user_data
-    )
+    response = test_client.post("/auth/create_user", params=sample_user_data)
     assert response.status_code == 201
     user_data = response.json()
-    
+
     # Login to get token
     login_response = test_client.post(
         "/auth/login",
         params={
             "username": sample_user_data["username"],
-            "password": sample_user_data["password"]
-        }
+            "password": sample_user_data["password"],
+        },
     )
     assert login_response.status_code == 200
     token_data = login_response.json()
-    
+
     result = {
         "user": user_data,
         "token": token_data["access_token"],
-        "headers": {"Authorization": f"Bearer {token_data['access_token']}"}
+        "headers": {"Authorization": f"Bearer {token_data['access_token']}"},
     }
     return result
 
@@ -169,9 +168,7 @@ def authenticated_user(test_client, sample_user_data):
 def test_project(test_client, authenticated_user, sample_project_data):
     """Create a test project."""
     response = test_client.post(
-        "/projects/",
-        json=sample_project_data,
-        headers=authenticated_user["headers"]
+        "/projects/", json=sample_project_data, headers=authenticated_user["headers"]
     )
     assert response.status_code == 201
     result = response.json()
