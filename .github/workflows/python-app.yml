@@ -21,6 +21,8 @@ jobs:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         ALGORITHM: ${{ secrets.ALGORITHM }}
         ACCESS_TOKEN_EXPIRE_MINUTES: ${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+        FILE_STORAGE_PATH:  ${{ secrets.FILE_STORAGE_PATH }}
+        MAX_FILE_SIZE_MB:   ${{ secrets.MAX_FILE_SIZE_MB }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.10
