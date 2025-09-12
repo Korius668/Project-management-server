@@ -12,8 +12,10 @@ from app.api.documents import documents, get_documents_service
 
 # ---- PATCH DEPENDENCIES ----
 
+
 def fake_token_to_user():
     return uuid4()
+
 
 @pytest.fixture
 def client():
@@ -26,11 +28,14 @@ def client():
     app.include_router(documents)
     return TestClient(app)
 
+
 @pytest.fixture
 def mock_service(client):
     return client.app.dependency_overrides[get_documents_service]()
 
+
 # ---- HELPERS ----
+
 
 class FakeDocument:
     def __init__(self, id, filename):
@@ -41,7 +46,9 @@ class FakeDocument:
         self.storage_path = "/tmp/file.pdf"
         self.metadata = {"author": "tester"}
 
+
 # ---- TESTS ----
+
 
 def test_upload_document(client, mock_service):
     project_id = uuid4()
@@ -57,6 +64,7 @@ def test_upload_document(client, mock_service):
     assert response.json()["filename"] == "plik.txt"
     mock_service.upload_document.assert_awaited_once()
 
+
 def test_download_document(client, mock_service):
     doc = FakeDocument(uuid4(), "plik.pdf")
     fake_file = io.BytesIO(b"content")
@@ -65,10 +73,14 @@ def test_download_document(client, mock_service):
     response = client.get(f"/documents/{doc.id}")
 
     assert response.status_code == 200
-    assert response.headers["content-disposition"] == f'attachment; filename="{doc.filename}"'
+    assert (
+        response.headers["content-disposition"]
+        == f'attachment; filename="{doc.filename}"'
+    )
     body = b"".join(response.iter_bytes())
     assert body == b"content"
     mock_service.download_document.assert_awaited_once()
+
 
 def test_update_document(client, mock_service):
     doc = FakeDocument(uuid4(), "updated.pdf")
@@ -79,6 +91,7 @@ def test_update_document(client, mock_service):
     assert response.status_code == 200
     assert response.json()["filename"] == "updated.pdf"
     mock_service.update_document.assert_called_once()
+
 
 def test_delete_document(client, mock_service):
     doc_id = uuid4()

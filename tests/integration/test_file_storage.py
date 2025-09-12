@@ -1,4 +1,5 @@
 """Integration tests for file storage."""
+
 import pytest
 import tempfile
 import shutil
@@ -28,15 +29,15 @@ class TestLocalFileStorageAdapter:
     async def test_save_file_success(self, file_storage):
         """Test successful file saving."""
         file_content = BytesIO(b"This is test file content")
-        
+
         result = await file_storage.save_file(
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
             project_id="1",
-            metadata={"description": "Test file"}
+            metadata={"description": "Test file"},
         )
-        
+
         assert result is not None
         assert result.filename == "test.txt"
         assert result.content_type == "text/plain"
@@ -45,17 +46,19 @@ class TestLocalFileStorageAdapter:
         assert result.metadata == {"description": "Test file"}
 
     @pytest.mark.asyncio
-    async def test_save_file_creates_project_directory(self, file_storage, temp_storage_path):
+    async def test_save_file_creates_project_directory(
+        self, file_storage, temp_storage_path
+    ):
         """Test that saving file creates project directory."""
         file_content = BytesIO(b"test content")
-        
+
         await file_storage.save_file(
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
-            project_id="123"
+            project_id="123",
         )
-        
+
         project_dir = temp_storage_path / "project-123"
         assert project_dir.exists()
         assert project_dir.is_dir()
@@ -65,21 +68,21 @@ class TestLocalFileStorageAdapter:
         """Test that saving files generates unique filenames."""
         file_content1 = BytesIO(b"content 1")
         file_content2 = BytesIO(b"content 2")
-        
+
         result1 = await file_storage.save_file(
             file_content=file_content1,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         result2 = await file_storage.save_file(
             file_content=file_content2,
             filename="test.txt",  # Same filename
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Storage paths should be different (unique UUIDs)
         assert result1.storage_path != result2.storage_path
         # But original filenames should be preserved
@@ -92,17 +95,17 @@ class TestLocalFileStorageAdapter:
         # Save file first
         original_content = b"This is test file content"
         file_content = BytesIO(original_content)
-        
+
         save_result = await file_storage.save_file(
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Get file
         retrieved_file = await file_storage.get_file(save_result.storage_path)
-        
+
         assert retrieved_file is not None
         retrieved_content = retrieved_file.read()
         assert retrieved_content == original_content
@@ -122,16 +125,16 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Verify file exists
         file_path = temp_storage_path / save_result.storage_path
         assert file_path.exists()
-        
+
         # Delete file
         result = await file_storage.delete_file(save_result.storage_path)
-        
+
         assert result is True
         assert not file_path.exists()
 
@@ -150,13 +153,13 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Check existence
         exists = await file_storage.file_exists(save_result.storage_path)
         assert exists is True
-        
+
         # Check non-existent file
         not_exists = await file_storage.file_exists("nonexistent/path.txt")
         assert not_exists is False
@@ -165,24 +168,23 @@ class TestLocalFileStorageAdapter:
     async def test_get_file_url_returns_path(self, file_storage):
         """Test getting file URL returns path."""
         storage_path = "project-1/test.txt"
-        
-        url = await file_storage.get_file_url(storage_path)
-        
-        assert url == "/files/project-1/test.txt"
 
+        url = await file_storage.get_file_url(storage_path)
+
+        assert url == "/files/project-1/test.txt"
 
     @pytest.mark.asyncio
     async def test_save_file_preserves_extension(self, file_storage):
         """Test that file extension is preserved in storage path."""
         file_content = BytesIO(b"test content")
-        
+
         result = await file_storage.save_file(
             file_content=file_content,
             filename="document.pdf",
             content_type="application/pdf",
-            project_id="1"
+            project_id="1",
         )
-        
+
         assert result.storage_path.endswith(".pdf")
         assert result.filename == "document.pdf"
         assert result.content_type == "application/pdf"

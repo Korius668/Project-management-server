@@ -28,15 +28,15 @@ class TestLocalFileStorageAdapter:
     async def test_save_file_success(self, file_storage):
         """Test successful file saving."""
         file_content = BytesIO(b"This is test file content")
-    
+
         result = await file_storage.save_file(
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
             project_id="1",
-            metadata={"description": "Test file"}
+            metadata={"description": "Test file"},
         )
-    
+
         assert isinstance(result, FileMetadata)
         assert result.filename == "test.txt"
         assert result.content_type == "text/plain"
@@ -49,14 +49,14 @@ class TestLocalFileStorageAdapter:
         """Test that project directory is created when saving file."""
         file_content = BytesIO(b"Test content")
         project_id = "123"
-        
+
         await file_storage.save_file(
             file_content=file_content,
             filename="test.txt",
             content_type="text/plain",
-            project_id=project_id
+            project_id=project_id,
         )
-        
+
         project_dir = file_storage.base_path / f"project-{project_id}"
         assert project_dir.exists()
         assert project_dir.is_dir()
@@ -66,21 +66,21 @@ class TestLocalFileStorageAdapter:
         """Test that unique filenames are generated to avoid conflicts."""
         file_content1 = BytesIO(b"Content 1")
         file_content2 = BytesIO(b"Content 2")
-        
+
         result1 = await file_storage.save_file(
             file_content=file_content1,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         result2 = await file_storage.save_file(
             file_content=file_content2,
             filename="test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         assert result1.storage_path != result2.storage_path
 
     @pytest.mark.asyncio
@@ -92,14 +92,14 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="retrieve_test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Then retrieve it
         retrieved_file = await file_storage.get_file(result.storage_path)
         retrieved_content = retrieved_file.read()
         retrieved_file.close()
-        
+
         assert retrieved_content == b"Test content for retrieval"
 
     @pytest.mark.asyncio
@@ -117,15 +117,15 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="delete_test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # Verify file exists
         assert await file_storage.file_exists(result.storage_path)
-        
+
         # Delete the file
         deleted = await file_storage.delete_file(result.storage_path)
-        
+
         assert deleted is True
         assert not await file_storage.file_exists(result.storage_path)
 
@@ -144,9 +144,9 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="exists_test.txt",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         exists = await file_storage.file_exists(result.storage_path)
         assert exists is True
 
@@ -161,7 +161,7 @@ class TestLocalFileStorageAdapter:
         """Test file URL generation."""
         storage_path = "project-1/test-file.txt"
         url = await file_storage.get_file_url(storage_path)
-        
+
         assert url == f"/files/{storage_path}"
 
     @pytest.mark.asyncio
@@ -169,7 +169,7 @@ class TestLocalFileStorageAdapter:
         """Test file URL generation with custom expiry."""
         storage_path = "project-1/test-file.txt"
         url = await file_storage.get_file_url(storage_path, expires_in=7200)
-        
+
         # For local storage, expiry doesn't affect the URL
         assert url == f"/files/{storage_path}"
 
@@ -181,9 +181,9 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="document.pdf",
             content_type="application/pdf",
-            project_id="1"
+            project_id="1",
         )
-        
+
         # The storage path should contain a UUID filename with .pdf extension
         assert result.storage_path.endswith(".pdf")
         assert "project-1" in result.storage_path
@@ -196,9 +196,9 @@ class TestLocalFileStorageAdapter:
             file_content=file_content,
             filename="README",
             content_type="text/plain",
-            project_id="1"
+            project_id="1",
         )
-        
+
         assert isinstance(result, FileMetadata)
         assert result.filename == "README"
         # Storage path should not have an extension since original didn't

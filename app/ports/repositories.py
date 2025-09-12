@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from app.domain.models import Project, User, Document, ProjectMembership, ProjectRole
 
 
-
-
 class UsersRepository(ABC):
 
     @abstractmethod

@@ -9,7 +9,6 @@ from app.config import settings
 from app.adapters.repositories.sqlalchemy.models import Base
 
 
-
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.secrets.database_url_prod)
 

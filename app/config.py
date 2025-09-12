@@ -39,6 +39,7 @@ class Settings:
     def is_development(self) -> bool:
         return self.app_env == "development"
 
+
 secrets = Secrets()
 
-settings = Settings(app_env="production", secrets=secrets)
+settings = Settings(app_env="development", secrets=secrets)

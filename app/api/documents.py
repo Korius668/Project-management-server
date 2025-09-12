@@ -11,12 +11,12 @@ from app.adapters.repositories.sqlalchemy.head_repository import SqlAlchemyRepos
 from app.api.schemas.responses import DocumentResponse
 from app.usecases.security import token_to_user
 
+
 class DocumentUpdateRequest(BaseModel):
     filename: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
+    model_config = {"arbitrary_types_allowed": True}
+
 
 documents = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -44,19 +44,22 @@ async def download_document(  # Implemented download endpoint
                 break
             yield chunk
         file.close()
-    headers = {
-        "Content-Disposition": f'attachment; filename="{document.filename}"'
-    }
-    return StreamingResponse(generate_chunks(), media_type="application/octet-stream", headers=headers)
+
+    headers = {"Content-Disposition": f'attachment; filename="{document.filename}"'}
+    return StreamingResponse(
+        generate_chunks(), media_type="application/octet-stream", headers=headers
+    )
 
 
-@documents.post("/", status_code=status.HTTP_201_CREATED,  response_model=DocumentResponse)
+@documents.post(
+    "/", status_code=status.HTTP_201_CREATED, response_model=DocumentResponse
+)
 async def upload_document(
     project_id: UUID = Form(...),
     user_id: UUID = Depends(token_to_user),
     file: UploadFile = File(...),
     name: Optional[str] = Form(None),
-    description: Optional[str] = Form(None), 
+    description: Optional[str] = Form(None),
     service: DocumentsService = Depends(get_documents_service),
 ) -> DocumentResponse:
     """Upload a new document file to a project."""
@@ -64,14 +67,15 @@ async def upload_document(
         project_id=project_id,
         user_id=user_id,
         file=file,
-        name = name,        
-        description = description)
-    
+        name=name,
+        description=description,
+    )
+
     return DocumentResponse.from_domain(document)
-  
+
 
 @documents.put("/{document_id}", response_model=DocumentResponse)
-async def update_document( 
+async def update_document(
     update_data: DocumentUpdateRequest,
     document_id: UUID,
     user_id: UUID = Depends(token_to_user),
@@ -86,9 +90,10 @@ async def update_document(
     )
     return DocumentResponse.from_domain(document)
 
+
 @documents.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(  # Implemented delete endpoint
-    document_id: UUID ,
+    document_id: UUID,
     user_id: UUID = Depends(token_to_user),
     service: DocumentsService = Depends(get_documents_service),
 ):

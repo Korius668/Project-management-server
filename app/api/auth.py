@@ -15,7 +15,9 @@ def get_users_service(session: Session = Depends(get_session)) -> AuthService:
 
 @auth.post("/create_user", status_code=status.HTTP_201_CREATED)
 def create_user(
-    username: str, password: str, email: str,
+    username: str,
+    password: str,
+    email: str,
     service: AuthService = Depends(get_users_service),
 ):
 
@@ -24,8 +26,9 @@ def create_user(
 
 
 @auth.post("/login")
-def login(username: str, password: str, 
-          service: AuthService = Depends(get_users_service)):
+def login(
+    username: str, password: str, service: AuthService = Depends(get_users_service)
+):
     token = service.login(username, password)
-    
+
     return {"access_token": token, "token_type": "bearer"}

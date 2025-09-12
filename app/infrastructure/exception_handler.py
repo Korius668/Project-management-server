@@ -24,6 +24,7 @@ from app.domain.exceptions import (
 
 from app.logger.logger import logger
 
+
 def register_exception_handlers(app: FastAPI):
 
     @app.exception_handler(DomainError)
@@ -33,12 +34,11 @@ def register_exception_handlers(app: FastAPI):
         public_message = str(exc) or "Unknown domain error"
 
         if isinstance(
-            exc, 
+            exc,
             (
-                    UserAlreadyExistsError,
-                    UserAlreadyMemberError,
-
-            )
+                UserAlreadyExistsError,
+                UserAlreadyMemberError,
+            ),
         ):
             status_code = status.HTTP_409_CONFLICT
         elif isinstance(exc, AuthenticationError):
@@ -68,25 +68,24 @@ def register_exception_handlers(app: FastAPI):
         elif isinstance(exc, DatabaseError):
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         logger.error(msg=f"{status_code} , {public_message}")
-        
+
         return JSONResponse(status_code=status_code, content={"detail": public_message})
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         log_msg = f"[{request.method}] {request.url.path} → {exc.status_code} | HTTPException: {exc.detail}"
         logger.warning(log_msg)
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail}
-        )
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
         log_msg = f"[{request.method}] {request.url.path} → 422 | ValidationError: {exc.errors()}"
         logger.warning(log_msg)
         return JSONResponse(
             status_code=422,
-            content={"detail": "Validation error", "errors": exc.errors()}
+            content={"detail": "Validation error", "errors": exc.errors()},
         )
 
     @app.exception_handler(Exception)
@@ -94,13 +93,11 @@ def register_exception_handlers(app: FastAPI):
         log_msg = f"[{request.method}] {request.url.path} → 500 | {type(exc).__name__}: {str(exc)}"
         logger.error(log_msg, exc_info=True)
         return JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error"}
+            status_code=500, content={"detail": "Internal server error"}
         )
-    
+
     @app.exception_handler(ValidationError)
     async def pydantic_error(request: Request, exc: Exception):
         return JSONResponse(
-            status_code=400,
-            content={"detail": "Internal server error"}
+            status_code=400, content={"detail": "Internal server error"}
         )

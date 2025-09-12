@@ -24,9 +24,7 @@ def main():
     app.config.settings = Settings(app_env=app_env, secrets=secrets)
 
     settings = app.config.settings
-    logger.info(
-        f"🚀 Starting server in {settings.app_env} mode"
-    )
+    logger.info(f"🚀 Starting server in {settings.app_env} mode")
 
     uvicorn.run(
         "app.main:app",

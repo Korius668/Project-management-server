@@ -3,8 +3,20 @@ from typing import Optional, Dict, Any
 from io import BytesIO
 from fastapi import UploadFile
 
-from app.domain.exceptions import DocumentNotFoundError, InsufficientPermissionsError, UserNotFoundError, PermissionDeniedError, ProjectNotFoundError, UserAlreadyMemberError
-from app.adapters.repositories.sqlalchemy.repositories import SqlAlchemyUsersRepository, SqlAlchemyDocumentsRepository, SqlAlchemyProjectMembershipsRepository, SqlAlchemyProjectsRepository
+from app.domain.exceptions import (
+    DocumentNotFoundError,
+    InsufficientPermissionsError,
+    UserNotFoundError,
+    PermissionDeniedError,
+    ProjectNotFoundError,
+    UserAlreadyMemberError,
+)
+from app.adapters.repositories.sqlalchemy.repositories import (
+    SqlAlchemyUsersRepository,
+    SqlAlchemyDocumentsRepository,
+    SqlAlchemyProjectMembershipsRepository,
+    SqlAlchemyProjectsRepository,
+)
 from app.adapters.repositories.file_storage.local_storage import LocalFileStorageAdapter
 from app.ports.head_repository import Repository
 from app.domain.models import User, Project, Document, ProjectMembership, ProjectRole
@@ -12,25 +24,30 @@ from app.domain.models import User, Project, Document, ProjectMembership, Projec
 
 class SqlAlchemyRepository(Repository):
     """The One to rule them all with SqlAlchemy"""
+
     def __init__(self, session):
         self.session = session
 
-    def create_user(self,   login,  password_hashed,    email)-> User:  
+    def create_user(self, login, password_hashed, email) -> User:
         usersRepository = SqlAlchemyUsersRepository(self.session)
 
         user = User(name=login, email=email, password_hash=password_hashed)
         usersRepository.add(user)
         return user
 
-    def get_user(self,   login)-> User:
-        usersRepository = SqlAlchemyUsersRepository(self.session) 
+    def get_user(self, login) -> User:
+        usersRepository = SqlAlchemyUsersRepository(self.session)
 
         return usersRepository.get_by_name(login)
-    
-    async def upload_document(self, project_id: UUID,   user_id: UUID,
-            file: UploadFile,   name: Optional[str] = None,
-            description: Optional[str] = None,  
-                            ) -> Document:
+
+    async def upload_document(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+        file: UploadFile,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Document:
         """Upload a new document to a project."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
@@ -41,14 +58,14 @@ class SqlAlchemyRepository(Repository):
             raise InsufficientPermissionsError(
                 "Only editors and owners can upload documents"
             )
-        
+
         file_metadata = await file_storage.save_file(
             file_content=file.file,
             filename=file.filename,
             content_type=file.content_type,
             project_id=int(project_id),
-            metadata={"description": description or "", "uploaded_by": str(user_id)},            
-            )
+            metadata={"description": description or "", "uploaded_by": str(user_id)},
+        )
         document = Document(
             project_id=project_id,
             filename=name or file_metadata.filename,
@@ -56,11 +73,12 @@ class SqlAlchemyRepository(Repository):
             size_bytes=file_metadata.size_bytes,
             storage_path=file_metadata.storage_path,
             metadata_=file_metadata.metadata,
-            )
+        )
         return documentsRepository.add(document)
 
-    async def download_document(self,  document_id: UUID,  user_id: UUID            
-                        ) -> tuple[BytesIO, Document]:
+    async def download_document(
+        self, document_id: UUID, user_id: UUID
+    ) -> tuple[BytesIO, Document]:
         """Download a document if user has access to the project."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
@@ -77,8 +95,13 @@ class SqlAlchemyRepository(Repository):
 
         return binaryFile, document
 
-    def update_document(self,    document_id: UUID,  user_id: UUID,  filename: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None
-                        ) -> Document:
+    def update_document(
+        self,
+        document_id: UUID,
+        user_id: UUID,
+        filename: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Document:
         """Update document metadata if user has editor/owner permissions."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
@@ -105,7 +128,7 @@ class SqlAlchemyRepository(Repository):
             )
         return updated_document
 
-    async def delete_document(self,  document_id: UUID, user_id: UUID) -> None:
+    async def delete_document(self, document_id: UUID, user_id: UUID) -> None:
         """Delete a document if user has editor/owner permissions."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
@@ -123,13 +146,11 @@ class SqlAlchemyRepository(Repository):
         await file_storage.delete_file(document.storage_path)
         documentsRepository.delete(document_id)
 
-    def create_project(self, name: str,  description: str,   owner_id: UUID
-                    ) -> Project:
+    def create_project(self, name: str, description: str, owner_id: UUID) -> Project:
         """Create new project with user as owner."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
 
-        
         project = Project(name=name, description=description, owner_id=owner_id)
         created_project = projectsRepository.add(project)
 
@@ -140,11 +161,11 @@ class SqlAlchemyRepository(Repository):
 
         return created_project
 
-    def get_project(self,    project_id: UUID,   user_id: UUID) -> Project:
+    def get_project(self, project_id: UUID, user_id: UUID) -> Project:
         """Get project if user has access."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -174,33 +195,45 @@ class SqlAlchemyRepository(Repository):
 
         return projects
 
-    def update_project(self, project_id: UUID,   user_id: UUID,  name: Optional[str] = None,
-            description: Optional[str] = None,
-                    ) -> Project:
+    def update_project(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Project:
         """Aktualizuje projekt jeśli użytkownik ma uprawnienia."""
         session = self.session
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(session)
         projectsRepository = SqlAlchemyProjectsRepository(session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
 
         membership = membershipsRepository.get(project_id, user_id)
         if not membership or membership.role == ProjectRole.viewer:
-            raise InsufficientPermissionsError("You don't have permission to edit this project")
+            raise InsufficientPermissionsError(
+                "You don't have permission to edit this project"
+            )
         if name is not None:
             project.name = name
         if description is not None:
             project.description = description
 
         return projectsRepository.update(project)
-        
-    def delete_project(self, project_id: UUID, user_id: UUID, membershipsRepository = None, projectsRepository = None) -> None:
+
+    def delete_project(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+        membershipsRepository=None,
+        projectsRepository=None,
+    ) -> None:
         """Usuwa projekt jeśli użytkownik jest właścicielem."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -213,14 +246,18 @@ class SqlAlchemyRepository(Repository):
         membershipsRepository.delete_by_project(project_id)
         return projectsRepository.delete(project_id)
 
-    def invite_user_to_project(self, project_id: UUID, inviter_id: UUID, invited_user_id: UUID, 
-            role: ProjectRole
-                               ) -> ProjectMembership:
+    def invite_user_to_project(
+        self,
+        project_id: UUID,
+        inviter_id: UUID,
+        invited_user_id: UUID,
+        role: ProjectRole,
+    ) -> ProjectMembership:
         """Zaprasza użytkownika do projektu."""
         usersRepository = SqlAlchemyUsersRepository(self.session)
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -244,9 +281,13 @@ class SqlAlchemyRepository(Repository):
         )
         return membershipsRepository.add(membership)
 
-    def update_user_role(self,  project_id: UUID,   updater_id: UUID,
-            target_user_id: UUID,   new_role: ProjectRole
-                        ) -> ProjectMembership:
+    def update_user_role(
+        self,
+        project_id: UUID,
+        updater_id: UUID,
+        target_user_id: UUID,
+        new_role: ProjectRole,
+    ) -> ProjectMembership:
         """Aktualizuje rolę użytkownika w projekcie."""
         usersRepository = SqlAlchemyUsersRepository(self.session)
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
@@ -275,13 +316,13 @@ class SqlAlchemyRepository(Repository):
         target_membership.role = new_role
         return membershipsRepository.update(target_membership)
 
-    def remove_user_from_project(self,  project_id: UUID,   
-            remover_id: UUID, target_user_id: UUID
-                                ) -> bool:
+    def remove_user_from_project(
+        self, project_id: UUID, remover_id: UUID, target_user_id: UUID
+    ) -> bool:
         """Usuwa użytkownika z projektu."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -301,13 +342,13 @@ class SqlAlchemyRepository(Repository):
 
         return membershipsRepository.delete(project_id, target_user_id)
 
-    def get_project_info(self, project_id: UUID, user_id: UUID)->dict:
+    def get_project_info(self, project_id: UUID, user_id: UUID) -> dict:
         """Pobiera pełne informacje o projekcie z członkami i dokumentami."""
         usersRepository = SqlAlchemyUsersRepository(self.session)
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -321,20 +362,17 @@ class SqlAlchemyRepository(Repository):
         for membership in memberships:
             user = usersRepository.get(membership.user_id)
             if user:
-                members.append(
-                    [membership.role, user]
-                )
+                members.append([membership.role, user])
         documents = documentsRepository.list_by_project(project_id)
-    
-        return  {"project": project, "members": members, "documents": documents}
-    
-    def get_project_documents(self, project_id: UUID,   user_id: UUID
-                            ) -> list[Document]:
+
+        return {"project": project, "members": members, "documents": documents}
+
+    def get_project_documents(self, project_id: UUID, user_id: UUID) -> list[Document]:
         """Pobiera dokumenty projektu."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
         projectsRepository = SqlAlchemyProjectsRepository(self.session)
         documentsRepository = SqlAlchemyDocumentsRepository(self.session)
-        
+
         project = projectsRepository.get(project_id)
         if not project:
             raise ProjectNotFoundError(f"Project with id {project_id} not found")
@@ -345,13 +383,12 @@ class SqlAlchemyRepository(Repository):
 
         return documentsRepository.list_by_project(project_id)
 
-
-    async def upload_project_documents(self,   project_id: UUID,   
-            user_id: UUID,  files: list[UploadFile]
-                                        ) -> list[Document]:
+    async def upload_project_documents(
+        self, project_id: UUID, user_id: UUID, files: list[UploadFile]
+    ) -> list[Document]:
         """Upload multiple documents to a project using file storage port."""
         membershipsRepository = SqlAlchemyProjectMembershipsRepository(self.session)
-        
+
         membership = membershipsRepository.get(project_id, user_id)
         if not membership or membership.role == ProjectRole.viewer:
             raise InsufficientPermissionsError(
