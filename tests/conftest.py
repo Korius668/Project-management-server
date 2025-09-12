@@ -1,138 +1,193 @@
 import pytest
+import asyncio
+from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
-from unittest.mock import Mock
-from uuid import uuid4
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+import tempfile
+import shutil
+from pathlib import Path
+import uuid
 
-from app.domain.models import User, Project, ProjectMembership, ProjectRole, Document
-from app.ports.repositories import (
-    UsersRepository,
-    ProjectsRepository,
-    ProjectMembershipsRepository,
-    DocumentsRepository,
-)
-from app.ports.file_storage import FileStoragePort
-
-
-from app.main import app
+from app.main import get_application
+from app.adapters.repositories.sqlalchemy.models import Base
+from app.infrastructure.db.db import get_session
+from app.adapters.repositories.sqlalchemy.head_repository import SqlAlchemyRepository
+from app.config import Settings, Secrets
 
 
-@pytest.fixture
-def client():
-    return TestClient(app)
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
-@pytest.fixture
-def new_user():
-    """Creates a test user and returns its credentials"""
-    payload = {"login": "user_1", "password": "VerySafePass123"}
-    client.post("/auth/sign_up", json=payload)
-    return payload
+@pytest.fixture(scope="session")
+def test_secrets():
+    """Test configuration secrets."""
+    return Secrets(
+        secret_key="test-secret-key-for-jwt-tokens-in-tests",
+        algorithm="HS256",
+        access_token_expire_minutes=30,
+        file_storage_path="./test_files",
+        max_file_size_mb=10,
+        database_url_prod=None
+    )
 
 
-@pytest.fixture
-def access_token(new_user):
-    """Logs in the new_user and returns their access token"""
-    response = client.post("/auth/login", json=new_user)
-    assert response.status_code == 200
-    token = response.json()["access_token"]
-    return token
+@pytest.fixture(scope="session")
+def test_settings(test_secrets):
+    """Test application settings."""
+    return Settings(app_env="test", secrets=test_secrets)
 
 
-@pytest.fixture
-def new_project(client, access_token):
-    headers = {"Authorization": f"Bearer {access_token}"}
-    payload = {"name": "My Test Project", "description": "Test description"}
-    response = client.put("/projects/1/info", json=payload, headers=headers)
+@pytest.fixture(scope="function")
+def test_engine():
+    """Create test database engine with in-memory SQLite."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False  # Set to True for SQL debugging
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def test_session(test_engine):
+    """Create a test database session."""
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
+
+
+@pytest.fixture(scope="function")
+def test_repository(test_session):
+    """Create test repository instance."""
+    return SqlAlchemyRepository(test_session)
+
+
+@pytest.fixture(scope="function")
+def temp_file_storage():
+    """Create temporary directory for file storage tests."""
+    temp_dir = tempfile.mkdtemp()
+    yield Path(temp_dir)
+    shutil.rmtree(temp_dir)
+
+
+@pytest.fixture(scope="function")
+def test_app(test_session, test_settings, temp_file_storage):
+    """Create test FastAPI application."""
+    app = get_application()
+
+    # Override dependencies
+    def override_get_session():
+        return test_session
+    
+    app.dependency_overrides[get_session] = override_get_session
+    
+    # Override file storage path in settings directly
+    test_settings.secrets.file_storage_path = str(temp_file_storage)
+    
+    # Override the global settings
+    from app.config import settings
+    original_settings = settings
+    settings = test_settings
+    
+    yield app
+    
+    # Clean up
+    app.dependency_overrides.clear()
+    settings = original_settings
+
+
+@pytest.fixture(scope="function")
+def test_client(test_app):
+    """Create test client."""
+    return TestClient(test_app)
+
+
+@pytest.fixture(scope="function")
+def sample_user_data():
+    """Sample user data for testing."""
+    return {
+        "username": f"testuser_{uuid.uuid4().hex[:8]}",
+        "email": f"test_{uuid.uuid4().hex[:8]}@example.com",
+        "password": "testpassword123"
+    }
+
+
+@pytest.fixture(scope="function")
+def sample_project_data():
+    """Sample project data for testing."""
+    return {
+        "name": f"Test Project {uuid.uuid4().hex[:8]}",
+        "description": "A test project for integration testing"
+    }
+
+
+@pytest.fixture(scope="function")
+def authenticated_user(test_client, sample_user_data):
+    """Create and authenticate a test user."""
+    # Create user
+    response = test_client.post(
+        "/auth/create_user",
+        params=sample_user_data
+    )
     assert response.status_code == 201
-    return response.json()
-
-
-@pytest.fixture
-def mock_session():
-    """Mock SQLAlchemy session"""
-    return Mock(spec=Session)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_environment():
-    """Setup test environment variables"""
-    import os
-
-    os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
-
-
-@pytest.fixture
-def mock_users_repository():
-    """Mock users repository"""
-    return Mock(spec=UsersRepository)
-
-
-@pytest.fixture
-def mock_projects_repository():
-    """Mock projects repository"""
-    return Mock(spec=ProjectsRepository)
-
-
-@pytest.fixture
-def mock_memberships_repository():
-    """Mock project memberships repository"""
-    return Mock(spec=ProjectMembershipsRepository)
-
-
-@pytest.fixture
-def mock_documents_repository():
-    """Mock documents repository"""
-    return Mock(spec=DocumentsRepository)
-
-
-@pytest.fixture
-def mock_file_storage():
-    """Mock file storage port"""
-    return Mock(spec=FileStoragePort)
-
-
-@pytest.fixture(scope="session")
-def sample_user():
-    """Sample user for testing"""
-    return User(
-        id=uuid4(),
-        email="test@example.com",
-        name="testuser",
-        password_hash="$2b$12$hashed_password",
+    user_data = response.json()
+    
+    # Login to get token
+    login_response = test_client.post(
+        "/auth/login",
+        params={
+            "username": sample_user_data["username"],
+            "password": sample_user_data["password"]
+        }
     )
+    assert login_response.status_code == 200
+    token_data = login_response.json()
+    
+    result = {
+        "user": user_data,
+        "token": token_data["access_token"],
+        "headers": {"Authorization": f"Bearer {token_data['access_token']}"}
+    }
+    return result
 
 
-@pytest.fixture(scope="session")
-def sample_project():
-    """Sample project for testing"""
-    return Project(
-        id=uuid4(),
-        owner_id=uuid4(),
-        name="Test Project",
-        description="Test Description",
+@pytest.fixture(scope="function")
+def test_project(test_client, authenticated_user, sample_project_data):
+    """Create a test project."""
+    response = test_client.post(
+        "/projects/",
+        json=sample_project_data,
+        headers=authenticated_user["headers"]
     )
+    assert response.status_code == 201
+    result = response.json()
+    return result
 
 
-@pytest.fixture(scope="session")
-def sample_membership():
-    """Sample project membership for testing"""
-    return ProjectMembership(
-        project_id=uuid4(),
-        user_id=uuid4(),
-        role=ProjectRole.editor,  # Fixed enum value from EDITOR to editor
-    )
+@pytest.fixture(scope="function")
+def sample_file_content():
+    """Sample file content for document testing."""
+    return b"This is test file content for document upload testing."
 
 
-@pytest.fixture(scope="session")
-def sample_document():
-    return Document(
-        id=uuid4,
-        project_id=uuid4,
-        filename="sample_document",
-        content_type="sample_type",
-        size_bytes=132156,
-        storage_path="sajmasfl",
-        metadata=None,
-    )
+# Cleanup fixtures
+@pytest.fixture(autouse=True)
+def cleanup_database(test_session):
+    """Clean up database after each test."""
+    yield
+    # Rollback any uncommitted changes
+    test_session.rollback()

@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 
-from app.adapters.sqlalchemy.types import UUID
+from app.adapters.repositories.sqlalchemy.types import UUID
 from app.domain.models import ProjectRole
 
 Base = declarative_base()
@@ -68,7 +68,7 @@ class DocumentORM(Base):
     content_type = Column(String, nullable=False)
     size_bytes = Column(BigInteger, nullable=False)
     storage_path = Column(String, nullable=False)
-    metadata_json = Column(JSON)
+    metadata_ = Column(JSON, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("project_id", "filename", name="uq_project_filename"),

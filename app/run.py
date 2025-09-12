@@ -14,7 +14,7 @@ def resolve_env(dev: bool) -> str:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dev", action="store_true", help="Tryb developerski")
-    parser.add_argument("-p", "--port", type=int, default=8000, help="Port serwera")
+    parser.add_argument("-p", "--port", type=int, default=8001, help="Port serwera")
     args = parser.parse_args()
 
     app_env = resolve_env(args.dev)
@@ -25,7 +25,7 @@ def main():
 
     settings = app.config.settings
     logger.info(
-        f"🚀 Starting server in {settings.app_env} mode (DB={settings.database_url})"
+        f"🚀 Starting server in {settings.app_env} mode"
     )
 
     uvicorn.run(

@@ -40,5 +40,5 @@ class Document(BaseModel):
     content_type: str
     size_bytes: int = Field(..., ge=0)
     storage_path: str
-    metadata: Optional[Dict[str, Any]] = None
+    metadata_: Optional[Dict[str, Any]] = None
     model_config = ConfigDict(from_attributes=True)

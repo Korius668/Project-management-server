@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import Mock
 from uuid import uuid4
-from app.adapters.sqlalchemy.repositories import (
+from app.adapters.repositories.sqlalchemy.repositories import (
     SqlAlchemyProjectsRepository,
     SqlAlchemyDocumentsRepository,
 )
-from app.adapters.sqlalchemy.models import (
+from app.adapters.repositories.sqlalchemy.models import (
     ProjectORM,
     DocumentORM,
 )
@@ -193,7 +193,7 @@ class TestSqlAlchemyDocumentsRepository:
         assert orm_call.content_type == document.content_type
         assert orm_call.size_bytes == document.size_bytes
         assert orm_call.storage_path == document.storage_path
-        assert orm_call.metadata_json == document.metadata
+        assert orm_call.metadata_ == document.metadata_
 
     def test_get_document_found(self):
         # Given
@@ -209,7 +209,7 @@ class TestSqlAlchemyDocumentsRepository:
         mock_orm.content_type = "application/pdf"
         mock_orm.size_bytes = 1024
         mock_orm.storage_path = "/storage"
-        mock_orm.metadata = {"version": 1}
+        mock_orm.metadata_ = {"version": 1}
 
         mock_session.get.return_value = mock_orm
         repo = SqlAlchemyDocumentsRepository(mock_session)
@@ -226,7 +226,7 @@ class TestSqlAlchemyDocumentsRepository:
         assert result.content_type == "application/pdf"
         assert result.size_bytes == 1024
         assert result.storage_path == "/storage"
-        assert result.metadata == {"version": 1}
+        assert result.metadata_ == {"version": 1}
 
     def test_get_document_not_found(self):
         # Given
@@ -266,7 +266,7 @@ class TestSqlAlchemyDocumentsRepository:
         assert mock_orm.content_type == updated_document.content_type
         assert mock_orm.size_bytes == updated_document.size_bytes
         assert mock_orm.storage_path == updated_document.storage_path
-        assert mock_orm.metadata_json == updated_document.metadata
+        assert mock_orm.metadata_ == updated_document.metadata_
         mock_session.commit.assert_called_once()
         assert result == updated_document
 
@@ -301,7 +301,7 @@ class TestSqlAlchemyDocumentsRepository:
             mock_orm.content_type = "application/pdf"
             mock_orm.size_bytes = 1024 * (i + 1)
             mock_orm.storage_path = f"/storage/file{i}.pdf"
-            mock_orm.metadata = {"version": i + 1}
+            mock_orm.metadata_ = {"version": i + 1}
             mock_orms.append(mock_orm)
 
         mock_query = Mock()
@@ -337,7 +337,7 @@ class TestSqlAlchemyDocumentsRepository:
             mock_orm.content_type = "application/pdf"
             mock_orm.size_bytes = 1024
             mock_orm.storage_path = f"/storage/project_file{i}.pdf"
-            mock_orm.metadata = {"project_specific": True}
+            mock_orm.metadata_ = {"project_specific": True}
             mock_orms.append(mock_orm)
 
         mock_query = Mock()

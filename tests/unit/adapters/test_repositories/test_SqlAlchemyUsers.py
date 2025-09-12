@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import Mock
 from uuid import uuid4
-from app.adapters.sqlalchemy.repositories import SqlAlchemyUsersRepository
-from app.adapters.sqlalchemy.models import UserORM
+from app.adapters.repositories.sqlalchemy.repositories import SqlAlchemyUsersRepository
+from app.adapters.repositories.sqlalchemy.models import UserORM
 from app.domain.models import User
 
 

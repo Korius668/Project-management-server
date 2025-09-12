@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, BinaryIO, Dict, Any
 from uuid import UUID
-
+from dataclasses import dataclass
 from app.domain.models import Project, User, Document, ProjectMembership, ProjectRole
+
+
 
 
 class UsersRepository(ABC):
@@ -123,3 +125,48 @@ class ProjectMembershipsRepository(ABC):
     @abstractmethod
     def count_by_project(self, project_id: UUID) -> int:
         """Count members in a project"""
+
+
+@dataclass
+class FileMetadata:
+    filename: str
+    content_type: str
+    size_bytes: int
+    storage_path: str
+    metadata: Optional[dict] = None
+
+
+class FileStoragePort(ABC):
+    """Port for file storage operations - defines WHAT we can do with files"""
+
+    @abstractmethod
+    async def save_file(
+        self,
+        file_content: BinaryIO,
+        filename: str,
+        content_type: str,
+        project_id: str,
+        metadata: Optional[dict] = None,
+    ) -> FileMetadata:
+        """Save file and return metadata with storage path"""
+        pass
+
+    @abstractmethod
+    async def get_file(self, storage_path: str):
+        """Retrieve file content by storage path"""
+        pass
+
+    @abstractmethod
+    async def delete_file(self, storage_path: str) -> bool:
+        """Delete file by storage path"""
+        pass
+
+    @abstractmethod
+    async def file_exists(self, storage_path: str) -> bool:
+        """Check if file exists at storage path"""
+        pass
+
+    @abstractmethod
+    async def get_file_url(self, storage_path: str, expires_in: int = 3600) -> str:
+        """Get temporary URL for file access (useful for cloud storage)"""
+        pass

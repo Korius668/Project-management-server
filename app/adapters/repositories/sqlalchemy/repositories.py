@@ -3,8 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-
-from app.domain.models import User, Project, Document, ProjectMembership, ProjectRole
+from app.domain.models import User, Project, Document, ProjectMembership
 from app.domain.exceptions import (
     UserAlreadyExistsError,
     ProjectAlreadyExistsError,
@@ -20,14 +19,15 @@ from app.ports.repositories import (
     UsersRepository,
     ProjectsRepository,
     DocumentsRepository,
-    ProjectMembershipsRepository,
+    ProjectMembershipsRepository
 )
-from app.adapters.sqlalchemy.models import (
+from app.adapters.repositories.sqlalchemy.models import (
     UserORM,
     ProjectORM,
     DocumentORM,
     ProjectMembershipORM,
 )
+
 
 
 class SqlAlchemyUsersRepository(UsersRepository):
@@ -99,7 +99,7 @@ class SqlAlchemyUsersRepository(UsersRepository):
 
     def get_by_name(self, name: str) -> Optional[User]:
         try:
-            orm = self.session.query(UserORM).filter_by(email=name).first()
+            orm = self.session.query(UserORM).filter_by(name=name).first()
             if orm:
                 return User.model_validate(orm, from_attributes=True)
             return None
@@ -230,11 +230,12 @@ class SqlAlchemyProjectsRepository(ProjectsRepository):
         except SQLAlchemyError as e:
             self.session.rollback()
             raise DatabaseError(f"Database error during deleting project: {e}")
-
+        
 
 class SqlAlchemyDocumentsRepository(DocumentsRepository):
     def __init__(self, session: Session):
         self.session = session
+
 
     def add(self, document: Document) -> Document:
         orm = DocumentORM(
@@ -244,12 +245,14 @@ class SqlAlchemyDocumentsRepository(DocumentsRepository):
             content_type=document.content_type,
             size_bytes=document.size_bytes,
             storage_path=document.storage_path,
-            metadata_json=document.metadata,
+            metadata_=document.metadata_,
         )
         try:
             self.session.add(orm)
+
             self.session.commit()
             return document
+        
         except IntegrityError as e:
             self.session.rollback()
             constraint_name = getattr(
@@ -296,7 +299,7 @@ class SqlAlchemyDocumentsRepository(DocumentsRepository):
             orm.content_type = document.content_type
             orm.size_bytes = document.size_bytes
             orm.storage_path = document.storage_path
-            orm.metadata_json = document.metadata
+            orm.metadata_ = document.metadata_
             self.session.commit()
             return document
         except IntegrityError as e:

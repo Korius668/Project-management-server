@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import Mock
 from uuid import uuid4
 
-from app.adapters.sqlalchemy.repositories import (
+from app.adapters.repositories.sqlalchemy.repositories import (
     SqlAlchemyProjectMembershipsRepository,
 )
-from app.adapters.sqlalchemy.models import (
+from app.adapters.repositories.sqlalchemy.models import (
     ProjectMembershipORM,
 )
 from app.domain.models import ProjectMembership, ProjectRole

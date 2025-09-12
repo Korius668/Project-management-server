@@ -1,7 +1,6 @@
 import logging
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("customlogger")
-logger.setLevel(logging.INFO)
 logger.propagate = True
