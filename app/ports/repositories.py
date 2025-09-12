@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional, BinaryIO, Dict, Any
 from uuid import UUID
-
-from app.domain.models import Project, User, Document, ProjectMembership
+from dataclasses import dataclass
+from app.domain.models import Project, User, Document, ProjectMembership, ProjectRole
 
 
 class UsersRepository(ABC):
@@ -16,8 +16,16 @@ class UsersRepository(ABC):
         """Retrieve a user by id"""
 
     @abstractmethod
+    def get_by_name(self, name: str) -> Optional[User]:
+        """Retrieve a user by name"""
+
+    @abstractmethod
     def list(self) -> List[User]:
         """Return all users"""
+
+    @abstractmethod
+    def delete(self, user_id: UUID) -> None:
+        """Delete a user by id"""
 
 
 class ProjectsRepository(ABC):
@@ -62,7 +70,7 @@ class DocumentsRepository(ABC):
         """Return all documents"""
 
     @abstractmethod
-    def list_with_project_id(self, project_id) -> List[Document]:
+    def list_by_project(self, project_id) -> List[Document]:
         """Return all documents with project id"""
 
     @abstractmethod
@@ -77,5 +85,86 @@ class ProjectMembershipsRepository(ABC):
         """Add a new membership"""
 
     @abstractmethod
-    def list_with_project_id(self, project_id) -> List[ProjectMembership]:
-        """Return all memberships with project id"""
+    def get(self, project_id: UUID, user_id: UUID) -> ProjectMembership:
+        """Get a membership"""
+
+    @abstractmethod
+    def update(self, project_membership: ProjectMembership) -> ProjectMembership:
+        """Update a membership"""
+
+    @abstractmethod
+    def list(self):
+        """Return all memberships"""
+
+    @abstractmethod
+    def list_by_project(self, project_id) -> List[ProjectMembership]:
+        """Return memberships with project id"""
+
+    @abstractmethod
+    def list_by_user(self, user_id) -> List[ProjectMembership]:
+        """Return documents with user id"""
+
+    @abstractmethod
+    def delete(self, project_membership: ProjectMembership) -> None:
+        """Delete a membership"""
+
+    @abstractmethod
+    def delete_by_project(self, project_id: UUID) -> None:
+        """Delete memberships of project"""
+
+    @abstractmethod
+    def delete_by_user(self, user_id: UUID) -> None:
+        """Delete memberships of user"""
+
+    @abstractmethod
+    def exists(self, project_id: UUID, user_id: UUID) -> bool:
+        """Check if membership exists"""
+
+    @abstractmethod
+    def count_by_project(self, project_id: UUID) -> int:
+        """Count members in a project"""
+
+
+@dataclass
+class FileMetadata:
+    filename: str
+    content_type: str
+    size_bytes: int
+    storage_path: str
+    metadata: Optional[dict] = None
+
+
+class FileStoragePort(ABC):
+    """Port for file storage operations - defines WHAT we can do with files"""
+
+    @abstractmethod
+    async def save_file(
+        self,
+        file_content: BinaryIO,
+        filename: str,
+        content_type: str,
+        project_id: str,
+        metadata: Optional[dict] = None,
+    ) -> FileMetadata:
+        """Save file and return metadata with storage path"""
+        pass
+
+    @abstractmethod
+    async def get_file(self, storage_path: str):
+        """Retrieve file content by storage path"""
+        pass
+
+    @abstractmethod
+    async def delete_file(self, storage_path: str) -> bool:
+        """Delete file by storage path"""
+        pass
+
+    @abstractmethod
+    async def file_exists(self, storage_path: str) -> bool:
+        """Check if file exists at storage path"""
+        pass
+
+    @abstractmethod
+    async def get_file_url(self, storage_path: str, expires_in: int = 3600) -> str:
+        """Get temporary URL for file access (useful for cloud storage)"""
+        pass

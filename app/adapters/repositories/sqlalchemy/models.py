@@ -1,8 +1,18 @@
 import uuid
-from sqlalchemy import Column, String, Text, BigInteger, ForeignKey, Enum, JSON
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    BigInteger,
+    ForeignKey,
+    Enum,
+    JSON,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship, declarative_base
 
-from app.adapters.sqlalchemy.types import UUID, ProjectRole
+from app.adapters.repositories.sqlalchemy.types import UUID
+from app.domain.models import ProjectRole
 
 Base = declarative_base()
 
@@ -12,12 +22,17 @@ class UserORM(Base):
 
     id = Column(UUID, primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("email", name="uq_users_email"),
+        UniqueConstraint("name", name="uq_users_name"),
+        UniqueConstraint("name", "email", name="uq_users_name_email"),
+    )
 
     projects = relationship("ProjectORM", back_populates="owner")
     memberships = relationship("ProjectMembershipORM", back_populates="user")
-    documents = relationship("DocumentORM", back_populates="uploader")
 
 
 class ProjectORM(Base):
@@ -25,7 +40,7 @@ class ProjectORM(Base):
 
     id = Column(UUID, primary_key=True, default=uuid.uuid4)
     owner_id = Column(UUID, ForeignKey("users.id"), nullable=False)
-    name = Column(String, nullable=False)
+    name = Column(String, unique=True, nullable=False)
     description = Column(Text)
 
     owner = relationship("UserORM", back_populates="projects")
@@ -49,12 +64,14 @@ class DocumentORM(Base):
 
     id = Column(UUID, primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID, ForeignKey("projects.id"), nullable=False)
-    uploader_id = Column(UUID, ForeignKey("users.id"), nullable=False)
     filename = Column(String, nullable=False)
     content_type = Column(String, nullable=False)
     size_bytes = Column(BigInteger, nullable=False)
     storage_path = Column(String, nullable=False)
-    metadata_json = Column(JSON)
+    metadata_ = Column(JSON, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "filename", name="uq_project_filename"),
+    )
 
     project = relationship("ProjectORM", back_populates="documents")
-    uploader = relationship("UserORM", back_populates="documents")

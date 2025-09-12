@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Annotated, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from uuid import UUID
+from uuid import UUID, uuid4
 
 
 class ProjectRole(str, Enum):
@@ -11,7 +11,7 @@ class ProjectRole(str, Enum):
 
 
 class User(BaseModel):
-    id: UUID
+    id: UUID = Field(default_factory=uuid4)
     email: EmailStr
     name: Annotated[str, Field(min_length=3, max_length=19)]
     password_hash: str
@@ -19,7 +19,7 @@ class User(BaseModel):
 
 
 class Project(BaseModel):
-    id: UUID
+    id: UUID = Field(default_factory=uuid4)
     owner_id: UUID
     name: str
     description: Optional[str] = None
@@ -34,11 +34,11 @@ class ProjectMembership(BaseModel):
 
 
 class Document(BaseModel):
-    id: UUID
+    id: UUID = Field(default_factory=uuid4)
     project_id: UUID
     filename: str
     content_type: str
     size_bytes: int = Field(..., ge=0)
     storage_path: str
-    metadata: Optional[Dict[str, Any]] = None
+    metadata_: Optional[Dict[str, Any]] = None
     model_config = ConfigDict(from_attributes=True)

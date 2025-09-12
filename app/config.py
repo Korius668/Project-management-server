@@ -6,6 +6,13 @@ from pydantic import ConfigDict
 class Secrets(BaseSettings):
     database_url_prod: str | None = None
     model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # jwt
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    #   File torage
+    file_storage_path: str
+    max_file_size_mb: int
 
 
 @dataclass
@@ -33,4 +40,6 @@ class Settings:
         return self.app_env == "development"
 
 
-settings: Settings | None = None
+secrets = Secrets()
+
+settings = Settings(app_env="development", secrets=secrets)
